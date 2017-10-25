@@ -7,9 +7,10 @@ and overclocking of NVIDIA GPUs on Windows platforms.
 
 ## Download
 
-[Downloads](https://github.com/arcnmx/nvoclock/releases) are available here
-on Github for both x86 and x86_64 Windows platforms. No installer necessary,
-just bring the GPU and ensure the drivers are installed properly.
+[Binary downloads](https://github.com/arcnmx/nvoclock/releases) are available
+here on Github for both x86 and x86_64 Windows platforms. No installer
+necessary, just bring the GPU and ensure the drivers are installed properly. It
+can also be installed and built from source using `cargo install nvoclock`
 
 ## Features
 
