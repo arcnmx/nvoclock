@@ -53,7 +53,7 @@ before_deploy:
 - cargo build --release
 - strip -o "$CARGO_TARGET_DIR/$CARGO_TARGET/release/nvoclock-$TRAVIS_TAG$EXE_SUFFIX$CI_SUFFIX_BIN" "$CARGO_TARGET_DIR/$CARGO_TARGET/release/nvoclock$CI_SUFFIX_BIN"
 - |
-  if [[ "$CARGO_TARGET" != *windows* ]]; then
+  if [[ "$CARGO_TARGET" = "" ]]; then
     cargo package
   fi
 after_deploy:
