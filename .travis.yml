@@ -35,7 +35,7 @@ env:
   - secure: f27xHirHQ4AZEhOOBbzoYB/M9+GCwdlYgOnd7HT1SoXE5e2dROH0v2D20qx9XYiVksUNa0vidENY31FxpR7yLEqJLJ8M/H+cKQxx7GItikXO3rA28pA/1JPPBboQCJE2TBwE6Vgi+FpSPKS07zGyhMVUtdcCRqLh2P45CXykvS8RvhLPKAU4hiMNX/5JHLV+OiTE7jhNinmTbYKpCeMmNmfKlyRyGWrGP5jzHJE3si23B9cXWMq/umUhApr3gxrp6TJkfO4wbTE1AJHSFCw+NJ7ZRItVroe/jR3uptSfwqb3I3jJCDWaFO+reDPJPk1vMMNMiZ+opzp5e+3BTngeBK81vqChdFN5ClrlVN2ZUNsWcXcy2erfzwGyRNL7Jg4xtBU8yF9831ATB7meOfGk2leqn9+7h4fDOlWV7dPHUzUna8QPTnojsaQrPHTTn8971gXpSN01148/QtJExakB9W2IlxNXxCRtI5xBt/5Y/+GgBbnF68dKvn7P/AL27+goBeRRc8gXwbikCFfd1PRO1cpmEH+xr0xhXK2eqPm6GAZaFF/F/uuIg+68EwYEzlyOFJ1QI3TTKlCF2NMWyy8DVCGNBeMZrA+eziyvSHD/ZtxbrYVjaRqiRsmnmWRK0YcFuqZDkhAcE1G9SBvWx6Ikx4oheDtskC0NYZFFVuiKCC4=
   - secure: StV4lBjxkNKABIZ69PEn4smuCzh2gYbk1qBGDqplgxQ/oUmHSC3L6sIdGlqd1ZHjwSzGPb4hxKpHozcPfL5jMbBHtzoloEUqD/YEriVhPSNSE0EGvG2x9gsTWKvBGrfkUcESVd+FjdE7Z7GChOy0psSwOj86vo+g0sR2xpEXERISToWFQGFPZlXetIvnfZEkD3SjPnmhyf8s8KhnDJo0MAj37wIclAyV+NFT+SKkR3SyIkvXcLR6OTVq6BjVHq8LfWDXWEpoNpsKwdaEbdh727TAXBRLokObTAo+ESxGz4jgp141Kg47/BhBcong5Jm+iYtbWXQxWBx9aLh+KA+44rKpYAFzzOut5Os4oIrNku3UDLVV8xBt3dkVPKY+JAyOyqEfti3WTe2mPBS3GIoCzttls6Be6NzVPvPpBVv/S68LB/HnhVohJkeuJihNM9z5R1/hHIE+10NZaNau6TJpJoiw7GmR+vMAwX99tN/enqasNii70x5Gz+j226+XiUJElSR1wzIisgdqkLg8fbD5BNMHx8IKkCn+fTapOPbGbafUcWhfAvw7DZHP9yQyL6Bo7/Yo2ZdqDjHaqe2dld6ARvWQBKHNr+dmgWK8+LQuNzejDjL3CQn8CbLcvfI0XcdJCOZJHLR8kvkmQh5lj8o7y3kTEyzaNckUgjlX1wHCxlE=
 before_install:
-- curl -L https://github.com/arcnmx/ci/archive/rust-target.tar.gz | tar -xzC $HOME && . $HOME/ci-rust-target/src
+- curl -L https://github.com/arcnmx/ci/archive/0.2.tar.gz | tar -xzC $HOME && . $HOME/ci-0.2/src
 script:
 - cargo test
 - cargo build
