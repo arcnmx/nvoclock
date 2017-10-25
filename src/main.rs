@@ -560,7 +560,7 @@ fn main_result() -> Result<i32, Error> {
             let gpus = Gpu::enumerate()?;
             let gpus = select_gpus(&gpus, gpu)?;
 
-            let (settings, explicit) = if let Some(reset) = matches.values_of("reset") {
+            let (settings, explicit) = if let Some(reset) = matches.values_of("setting") {
                 (reset.map(ResetSettings::from_str).collect::<Result<_, _>>()?, true)
             } else {
                 (ResetSettings::possible_values_typed().iter().cloned().collect::<Vec<_>>(), false)
