@@ -5,6 +5,8 @@
 `nvoclock` is a command-line interface to NVAPI that supports full monitoring
 and overclocking of NVIDIA GPUs on Windows platforms.
 
+[Downloads](https://github.com/arcnmx/nvoclock/releases)
+
 ## Features
 
 While the interface may be a bit clunky, it supports everything you'd expect out
