@@ -49,10 +49,9 @@ of a modern overclocking tool:
 
 ## Future Items
 
-Some things can be improved, and since most tested was done with a single Pascal
-GPU there are some missing features for older hardware.
+Some things can be improved, and since most testing was done with a single
+pascal GPU there are some missing features for older hardware.
 
-- Maxwell power/voltage control
 - Previous generation GPUs need testing/support
 - RPC API + Daemon
   - Controls from another computer so autodetect can detect and survive crashes
@@ -65,7 +64,7 @@ GPU there are some missing features for older hardware.
 `nvoclock` isn't meant to be an all-encompassing overclocking and monitoring
 tool. The following features would better belong in a separate project:
 
-- GUI ([nvapi-rs](https://github.com/arcnmx/nvapi-rs) does all the real work and
+- GUI ([nvapi-rs](https://crates.io/crates/nvapi) does all the real work and
   makes it easy to create one though!)
 - AMD GPU support
 - CPU monitoring and/or overclocking
