@@ -1,5 +1,5 @@
 use std::io;
-use std::num::ParseIntError;
+use std::num::{ParseIntError, ParseFloatError};
 use types::ResetSettings;
 use nvapi::{Status, error_message};
 use serde_json;
@@ -22,6 +22,11 @@ quick_error! {
             display("JSON error: {}", err)
         }
         ParseInt(err: ParseIntError) {
+            from()
+            cause(err)
+            display("{}", err)
+        }
+        ParseFloat(err: ParseFloatError) {
             from()
             cause(err)
             display("{}", err)

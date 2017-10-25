@@ -21,12 +21,13 @@ mod types;
 
 use std::collections::BTreeMap;
 use std::process::exit;
+use std::thread::sleep;
 use std::time::Duration;
 use std::str::FromStr;
 use std::io::{self, Write};
 use std::{fs, iter};
 use nvapi::{
-    Status, Gpu,
+    Status, Gpu, GpuInfo, GpuSettings,
     Percentage, Celsius, Kilohertz, KilohertzDelta, Microvolts, VfPoint,
     ClockDomain, PState, CoolerPolicy, CoolerLevel, ClockLockMode,
     allowable_result
@@ -93,9 +94,18 @@ fn main_result() -> Result<i32, Error> {
                 .short("a")
                 .long("all")
                 .help("Show all available info")
+            ).arg(Arg::with_name("status")
+                .short("s")
+                .long("status")
+                .value_name("SHOW")
+                .takes_value(true)
+                .possible_values(POSSIBLE_BOOL)
+                .default_value(POSSIBLE_BOOL_ON)
+                .help("Show status info")
             ).arg(Arg::with_name("clocks")
                 .short("c")
                 .long("clocks")
+                .value_name("SHOW")
                 .takes_value(true)
                 .possible_values(POSSIBLE_BOOL)
                 .default_value(POSSIBLE_BOOL_ON)
@@ -103,6 +113,7 @@ fn main_result() -> Result<i32, Error> {
             ).arg(Arg::with_name("coolers")
                 .short("C")
                 .long("coolers")
+                .value_name("SHOW")
                 .takes_value(true)
                 .possible_values(POSSIBLE_BOOL)
                 .default_value(POSSIBLE_BOOL_OFF)
@@ -111,6 +122,7 @@ fn main_result() -> Result<i32, Error> {
             ).arg(Arg::with_name("sensors")
                 .short("s")
                 .long("sensors")
+                .value_name("SHOW")
                 .takes_value(true)
                 .possible_values(POSSIBLE_BOOL)
                 .default_value(POSSIBLE_BOOL_OFF)
@@ -119,6 +131,7 @@ fn main_result() -> Result<i32, Error> {
             ).arg(Arg::with_name("vfp")
                 .short("v")
                 .long("vfp")
+                .value_name("SHOW")
                 .takes_value(true)
                 .possible_values(POSSIBLE_BOOL)
                 .default_value(POSSIBLE_BOOL_OFF)
@@ -127,11 +140,18 @@ fn main_result() -> Result<i32, Error> {
             ).arg(Arg::with_name("pstates")
                 .short("P")
                 .long("pstates")
+                .value_name("SHOW")
                 .takes_value(true)
                 .possible_values(POSSIBLE_BOOL)
                 .default_value(POSSIBLE_BOOL_OFF)
                 .default_value_if("all", None, POSSIBLE_BOOL_ON)
                 .help("Show power state configurations")
+            ).arg(Arg::with_name("monitor")
+                .short("m")
+                .long("monitor")
+                .value_name("PERIOD")
+                .takes_value(true)
+                .help("Monitor GPU status over time, optionally accepts period in seconds")
             )
         ).subcommand(SubCommand::with_name("get")
             .about("Show GPU overclock settings")
@@ -395,82 +415,126 @@ fn main_result() -> Result<i32, Error> {
             }
         },
         ("status", Some(matches)) => {
+            const NANOS_IN_SECOND: f64 = 1e9;
+
             let gpus = Gpu::enumerate()?;
             let gpus = select_gpus(&gpus, gpu)?;
+            let monitor = matches.value_of("monitor").map(f64::from_str).invert()?
+                .map(|v| Duration::new(v as u64, (v.fract() * NANOS_IN_SECOND) as u32));
 
-            match oformat {
-                OutputFormat::Human => {
-                    let show_clocks = parse_bool_match(&matches, "clocks");
-                    let show_coolers = parse_bool_match(&matches, "coolers");
-                    let show_sensors = parse_bool_match(&matches, "sensors");
-                    let show_vfp = parse_bool_match(&matches, "vfp");
-                    let show_pstates = parse_bool_match(&matches, "pstates");
+            loop {
+                match oformat {
+                    OutputFormat::Human => {
+                        let show_status = parse_bool_match(&matches, "status");
+                        let show_clocks = parse_bool_match(&matches, "clocks");
+                        let show_coolers = parse_bool_match(&matches, "coolers");
+                        let show_sensors = parse_bool_match(&matches, "sensors");
+                        let show_vfp = parse_bool_match(&matches, "vfp");
+                        let show_pstates = parse_bool_match(&matches, "pstates");
 
-                    for gpu in gpus {
-                        let status = gpu.status()?;
-                        human::print_status(&status);
+                        for &gpu in &gpus {
+                            let mut info = None;
+                            let mut set = None;
 
-                        let set = gpu.settings()?;
-                        human::print_settings(&set);
+                            fn requires_info<'a>(gpu: &Gpu, info: &'a mut Option<GpuInfo>) -> Result<&'a GpuInfo, Error> {
+                                if info.is_some() {
+                                    return Ok(info.as_ref().unwrap())
+                                }
 
-                        println!();
+                                Ok(info.get_or_insert(gpu.info()?))
+                            }
 
-                        let info = gpu.info()?;
+                            fn requires_set<'a>(gpu: &Gpu, set: &'a mut Option<GpuSettings>) -> Result<&'a GpuSettings, Error> {
+                                if set.is_some() {
+                                    return Ok(set.as_ref().unwrap())
+                                }
 
-                        if show_clocks {
-                            human::print_clocks(&info.base_clocks, &info.boost_clocks, &status.clocks, &status.utilization);
+                                Ok(set.get_or_insert(gpu.settings()?))
+                            }
+
+                            let status = gpu.status()?;
+
+                            if show_status {
+                                human::print_status(&status);
+
+                                human::print_settings(requires_set(gpu, &mut set)?);
+
+                                println!();
+                            }
+
+                            if show_clocks {
+                                let info = requires_info(gpu, &mut info)?;
+                                human::print_clocks(&info.base_clocks, &info.boost_clocks, &status.clocks, &status.utilization);
+                            }
+
+                            if show_sensors {
+                                let info = requires_info(gpu, &mut info)?;
+                                let set = requires_set(gpu, &mut set)?;
+
+                                human::print_sensors(status.sensors.iter()
+                                    .zip(info.sensor_limits.iter().zip(set.sensor_limits.iter().cloned())
+                                        .map(Some).chain(iter::repeat(None))
+                                    ).map(|(&(ref desc, temp), limit)| (desc, limit, temp))
+                                );
+                            }
+
+                            if show_coolers {
+                                human::print_coolers(
+                                    status.coolers.iter().map(|&(ref desc, ref cooler)| (desc, cooler)),
+                                    status.tachometer
+                                );
+                            }
+
+                            if show_vfp {
+                                let set = requires_set(gpu, &mut set)?;
+
+                                let vfp = status.vfp.as_ref().ok_or(Status::NotSupported)?;
+                                let vfp_deltas = set.vfp.as_ref().ok_or(Status::NotSupported)?;
+                                let lock = set.vfp_locks.iter().map(|(_, e)| e)
+                                    .filter(|&e| e.mode == ClockLockMode::Manual).map(|e| e.voltage).max();
+                                human::print_vfp(vfp.graphics.iter().zip(vfp_deltas.graphics.iter())
+                                    .map(|((i0, p), (i1, d))| {
+                                        assert_eq!(i0, i1);
+                                        (*i0, VfPoint::new(p.clone(), d.clone()))
+                                    }),
+                                    lock, status.voltage
+                                );
+                            }
+
+                            if show_pstates {
+                                let info = requires_info(gpu, &mut info)?;
+                                let set = requires_set(gpu, &mut set)?;
+
+                                human::print_pstates(info.pstate_limits.iter()
+                                    .flat_map(|(&p, e)| e.iter().map(move |(&c, e)|
+                                        (p, c, e,
+                                            set.pstate_deltas.get(&p).and_then(|p| p.get(&c).cloned())
+                                        )
+                                    )),
+                                    Some(status.pstate)
+                                );
+                            }
+
+                            println!();
                         }
-
-                        if show_sensors {
-                            human::print_sensors(status.sensors.iter()
-                                .zip(info.sensor_limits.iter().zip(set.sensor_limits.iter().cloned())
-                                    .map(Some).chain(iter::repeat(None))
-                                ).map(|(&(ref desc, temp), limit)| (desc, limit, temp))
-                            );
+                    },
+                    OutputFormat::Json => {
+                        let status = &gpus.iter().map(|&gpu| gpu.status()).collect::<Result<Vec<_>, _>>()?;
+                        if monitor.is_some() {
+                            // in monitor mode, newlines separate statuses so can't be pretty
+                            serde_json::to_writer(io::stdout(), status)?;
+                            println!();
+                        } else {
+                            serde_json::to_writer_pretty(io::stdout(), status)?;
                         }
+                    },
+                }
 
-                        if show_coolers {
-                            human::print_coolers(
-                                status.coolers.iter().map(|&(ref desc, ref cooler)| (desc, cooler)),
-                                status.tachometer
-                            );
-                        }
-
-                        if show_vfp {
-                            let vfp = status.vfp.as_ref().ok_or(Status::NotSupported)?;
-                            let vfp_deltas = set.vfp.as_ref().ok_or(Status::NotSupported)?;
-                            let lock = set.vfp_locks.iter().map(|(_, e)| e)
-                                .filter(|&e| e.mode == ClockLockMode::Manual).map(|e| e.voltage).max();
-                            human::print_vfp(vfp.graphics.iter().zip(vfp_deltas.graphics.iter())
-                                .map(|((i0, p), (i1, d))| {
-                                    assert_eq!(i0, i1);
-                                    (*i0, VfPoint::new(p.clone(), d.clone()))
-                                }),
-                                lock, status.voltage
-                            );
-                        }
-
-                        if show_pstates {
-                            let set = &set;
-                            human::print_pstates(info.pstate_limits.iter()
-                                .flat_map(|(&p, e)| e.iter().map(move |(&c, e)|
-                                    (p, c, e,
-                                        set.pstate_deltas.get(&p).and_then(|p| p.get(&c).cloned())
-                                    )
-                                )),
-                                Some(status.pstate)
-                            );
-                        }
-
-                        println!();
-                    }
-                },
-                OutputFormat::Json => {
-                    serde_json::to_writer_pretty(
-                        io::stdout(),
-                        &gpus.into_iter().map(|gpu| gpu.status()).collect::<Result<Vec<_>, _>>()?
-                    )?;
-                },
+                if let Some(monitor) = monitor.clone() {
+                    sleep(monitor)
+                } else {
+                    break
+                }
             }
         },
         ("get", Some(..)) => {
