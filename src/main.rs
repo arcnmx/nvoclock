@@ -13,6 +13,12 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate csv;
 
+mod auto;
+mod human;
+mod conv;
+mod error;
+mod types;
+
 use std::collections::BTreeMap;
 use std::process::exit;
 use std::time::Duration;
@@ -27,53 +33,9 @@ use nvapi::{
 };
 use clap::{Arg, App, SubCommand, AppSettings};
 use result::OptionResultExt;
-
-mod auto;
-mod human;
-
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-
-quick_error! {
-    #[derive(Debug)]
-    pub enum Error {
-        Nvapi(err: Status) {
-            from()
-            display("NVAPI error: {}", nvapi::error_message(*err).unwrap_or_else(|_| format!("{:?}", err)))
-        }
-        Io(err: io::Error) {
-            from()
-            cause(err)
-            display("IO error: {}", err)
-        }
-        Json(err: serde_json::Error) {
-            from()
-            cause(err)
-            display("JSON error: {}", err)
-        }
-        ParseInt(err: ::std::num::ParseIntError) {
-            from()
-            cause(err)
-            display("{}", err)
-        }
-        Str(err: &'static str) {
-            from()
-            display("{}", err)
-        }
-        ResetError { setting: ResetSettings, err: Status } {
-            from(s: (ResetSettings, Status)) -> {
-                setting: s.0,
-                err: s.1
-            }
-            display("Reset {:?} failed: {}", setting, Error::from(err))
-        }
-    }
-}
-
-impl<'a> From<&'a Status> for Error {
-    fn from(s: &'a Status) -> Self {
-        s.clone().into()
-    }
-}
+use conv::ConvertEnum;
+use error::Error;
+use types::*;
 
 fn main() {
     match main_result() {
@@ -82,148 +44,6 @@ fn main() {
             let _ = writeln!(io::stderr(), "{}", e);
             exit(1);
         },
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct GpuDescriptor {
-    pub name: String,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum OutputFormat {
-    Human,
-    Json,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum ResetSettings {
-    VoltageBoost,
-    SensorLimits,
-    PowerLimits,
-    CoolerLevels,
-    VfpDeltas,
-    VfpLock,
-    PStateDeltas,
-    Overvolt,
-}
-
-trait ConvertEnum: Sized {
-    fn from_str(s: &str) -> Result<Self, Error>;
-    fn to_str(&self) -> &'static str;
-    fn possible_values() -> &'static [&'static str];
-    fn possible_values_typed() -> &'static [Self];
-}
-
-macro_rules! enum_from_str {
-    (
-        $conv:ident => {
-        $(
-            $item:ident = $str:expr,
-        )*
-            _ => $err:expr,
-        }
-    ) => {
-        impl ConvertEnum for $conv {
-            fn from_str(s: &str) -> Result<Self, Error> {
-                match s {
-                $(
-                    $str => Ok($conv::$item),
-                )*
-                    _ => Err(($err).into()),
-                }
-            }
-
-            #[allow(unreachable_patterns)]
-            fn to_str(&self) -> &'static str {
-                match *self {
-                $(
-                    $conv::$item => $str,
-                )*
-                    _ => "unknown",
-                }
-            }
-
-            fn possible_values() -> &'static [&'static str] {
-                &[$(
-                    $str,
-                )*]
-            }
-
-            fn possible_values_typed() -> &'static [Self] {
-                &[$(
-                    $conv::$item,
-                )*]
-            }
-        }
-    };
-}
-
-enum_from_str! {
-    OutputFormat => {
-        Human = "human",
-        Json = "json",
-        _ => "unknown output format",
-    }
-}
-
-enum_from_str! {
-    ResetSettings => {
-        VoltageBoost = "voltage-boost",
-        SensorLimits = "thermal",
-        PowerLimits = "power",
-        CoolerLevels = "cooler",
-        VfpDeltas = "vfp",
-        VfpLock = "lock",
-        PStateDeltas = "pstate",
-        Overvolt = "overvolt",
-        _ => "unknown setting",
-    }
-}
-
-enum_from_str! {
-    PState => {
-        P0 = "P0",
-        P1 = "P1",
-        P2 = "P2",
-        P3 = "P3",
-        P4 = "P4",
-        P5 = "P5",
-        P6 = "P6",
-        P7 = "P7",
-        P8 = "P8",
-        P9 = "P9",
-        P10 = "P10",
-        P11 = "P11",
-        P12 = "P12",
-        P13 = "P13",
-        P14 = "P14",
-        P15 = "P15",
-        _ => "unknown pstate",
-    }
-}
-
-enum_from_str! {
-    ClockDomain => {
-        Graphics = "graphics",
-        Memory = "memory",
-        Processor = "processor",
-        Video = "video",
-        _ => "unknown clock type",
-    }
-}
-
-enum_from_str! {
-    CoolerPolicy => {
-        None = "default",
-        Manual = "manual",
-        Performance = "perf",
-        TemperatureDiscrete = "discrete",
-        TemperatureContinuous = "continuous",
-        Hybrid = "hybrid",
-        Silent = "silent",
-        Unknown32 = "32",
-        _ => "unknown cooler policy",
     }
 }
 
@@ -239,37 +59,13 @@ fn export_vfp<W: Write, I: Iterator<Item=VfPoint>>(write: W, points: I, delimite
     })
 }
 
-const POSSIBLE_BOOL_OFF: &'static str = "off";
-const POSSIBLE_BOOL_ON: &'static str = "on";
-const POSSIBLE_BOOL: &'static [&'static str] = &[POSSIBLE_BOOL_OFF, POSSIBLE_BOOL_ON];
-
-fn parse_bool_match(matches: &clap::ArgMatches, arg: &'static str) -> bool {
-    // Weird interaction with defaults and empty values
-    let occ = matches.occurrences_of(arg);
-    let values = matches.values_of(arg).map(|v| v.count()).unwrap_or(0);
-    let value = matches.value_of(arg);
-
-    let v = match (occ, values, value) {
-        (1, 1, Some(..)) => POSSIBLE_BOOL_ON,
-        (0, 1, Some(v)) => v,
-        (1, 2, Some(v)) => v,
-        _ => unreachable!(),
-    };
-
-    match v {
-        POSSIBLE_BOOL_OFF => false,
-        POSSIBLE_BOOL_ON => true,
-        _ => unreachable!(),
-    }
-}
-
 fn main_result() -> Result<i32, Error> {
     if let Err(e) = env_logger::init() {
         let _ = writeln!(io::stderr(), "Failed to initialize env_logger: {}", e);
     }
 
     let app = App::new("newclock")
-        .version(VERSION)
+        .version(env!("CARGO_PKG_VERSION"))
         .author("arcnmx")
         .about("NVIDIA overclocking")
         .arg(Arg::with_name("gpu")
