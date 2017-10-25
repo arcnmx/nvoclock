@@ -335,7 +335,7 @@ pub fn print_info(info: &GpuInfo) {
 pub fn print_clocks(base: &ClockFrequencies, boost: &ClockFrequencies, current: &ClockFrequencies, util: &Utilizations) {
     let mut table = Table::new();
     table.set_format(table_format());
-    table.set_titles(row!["Clock", "Current", "Base", "Boost", "Usage"]);
+    table.set_titles(row!["Clock", "Usage", "Current", "Base", "Boost"]);
     for clock in ClockDomain::values() {
         match (
             base.get(&clock), boost.get(&clock), current.get(&clock),
@@ -345,10 +345,10 @@ pub fn print_clocks(base: &ClockFrequencies, boost: &ClockFrequencies, current: 
             (base, boost, current, usage) => {
                 table.add_row(row![
                     clock,
+                    usage.map(|v| v.to_string()).unwrap_or_else(n_a),
                     current.map(|v| v.to_string()).unwrap_or_else(n_a),
                     base.map(|v| v.to_string()).unwrap_or_else(n_a),
-                    boost.map(|v| v.to_string()).unwrap_or_else(n_a),
-                    usage.map(|v| v.to_string()).unwrap_or_else(n_a)
+                    boost.map(|v| v.to_string()).unwrap_or_else(n_a)
                 ]);
             },
         }
