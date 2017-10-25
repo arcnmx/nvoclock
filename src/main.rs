@@ -74,7 +74,6 @@ fn main_result() -> Result<i32, Error> {
             .value_name("GPU")
             .takes_value(true)
             .multiple(true)
-            .default_value("0")
             .help("GPU index")
         ).arg(Arg::with_name("oformat")
             .short("O")
