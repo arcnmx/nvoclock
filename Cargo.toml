@@ -1,0 +1,31 @@
+[package]
+name = "nvoclock"
+version = "0.0.1"
+authors = ["arcnmx"]
+
+description = "NVIDIA overclocking CLI"
+keywords = ["nvidia", "gtx", "gpu", "nvapi", "overclock"]
+
+documentation = "http://github.com/arcnmx/nvoclock"
+repository = "https://github.com/arcnmx/nvoclock"
+readme = "README.md"
+license = "MIT"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+nvapi-hi = { version = "0.0.2", features = ["serde_types"] }
+clap = { version = "2.26.2", default-features = false }
+prettytable-rs = { version = "0.6.7", default-features = false }
+quick-error = "1.2.1"
+log = "0.3.8"
+env_logger = "0.4.3"
+csv = "^1.0.0-beta.5"
+serde = "^1.0.0"
+serde_derive = "^1.0.0"
+serde_json = "^1.0.0"
+result = "^0.0.1"
