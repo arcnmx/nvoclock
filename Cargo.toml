@@ -1,6 +1,6 @@
 [package]
 name = "nvoclock"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["arcnmx"]
 
 description = "NVIDIA overclocking CLI"
@@ -13,15 +13,17 @@ license = "MIT"
 
 [profile.dev]
 panic = "abort"
-[profile.release]
-panic = "abort"
 [profile.test]
 panic = "abort"
 [profile.bench]
 panic = "abort"
+[profile.release]
+panic = "abort"
+opt-level = 2
+lto = true
 
 [dependencies]
-nvapi-hi = { version = "0.0.2", features = ["serde_types"] }
+nvapi-hi = { version = "0.0.3", features = ["serde_types"] }
 clap = { version = "2.26.2", default-features = false }
 prettytable-rs = { version = "0.6.7", default-features = false }
 quick-error = "1.2.1"

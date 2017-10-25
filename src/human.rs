@@ -41,7 +41,7 @@ fn n_a() -> String {
 }
 
 pub fn print_settings(set: &GpuSettings) {
-    if let Ok(ref boost) = set.voltage_boost {
+    if let Some(ref boost) = set.voltage_boost {
         pline!("Voltage Boost", "{}", boost);
     }
     for limit in &set.sensor_limits {
@@ -85,7 +85,7 @@ pub fn print_status(status: &GpuStatus) {
         status.memory.dedicated_available,
         status.memory.dedicated_evictions, status.memory.dedicated_evictions_size,
     );
-    pline!("Core Voltage", "{}", status.voltage.map(|v| v.to_string()).ok().unwrap_or_else(n_a));
+    pline!("Core Voltage", "{}", status.voltage.map(|v| v.to_string()).unwrap_or_else(n_a));
     pline!("Limits", "{}",
         status.perf.limits.fold(None, |state, v| if let Some(state) = state {
             Some(format!("{}, {}", state, v))
@@ -120,7 +120,7 @@ pub fn print_status(status: &GpuStatus) {
             },
             CoolerControl::Variable => entry.level.to_string(),
         };
-        let tach = status.tachometer.as_ref().ok()
+        let tach = status.tachometer.as_ref()
             .and_then(|&t| if i == 0 { Some(format!(" ({} RPM)", t)) } else { None })
             .unwrap_or_else(|| String::new());
         pline!(format!("Cooler {}", cooler.kind), "{}{}", level, tach);

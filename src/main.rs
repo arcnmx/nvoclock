@@ -432,13 +432,13 @@ fn main_result() -> Result<i32, Error> {
                         if show_coolers {
                             human::print_coolers(
                                 status.coolers.iter().map(|&(ref desc, ref cooler)| (desc, cooler)),
-                                status.tachometer.ok()
+                                status.tachometer
                             );
                         }
 
                         if show_vfp {
-                            let vfp = status.vfp.as_ref()?;
-                            let vfp_deltas = set.vfp.as_ref()?;
+                            let vfp = status.vfp.as_ref().ok_or(Status::NotSupported)?;
+                            let vfp_deltas = set.vfp.as_ref().ok_or(Status::NotSupported)?;
                             let lock = set.vfp_locks.iter().map(|(_, e)| e)
                                 .filter(|&e| e.mode == ClockLockMode::Manual).map(|e| e.voltage).max();
                             human::print_vfp(vfp.graphics.iter().zip(vfp_deltas.graphics.iter())
@@ -446,7 +446,7 @@ fn main_result() -> Result<i32, Error> {
                                     assert_eq!(i0, i1);
                                     (*i0, VfPoint::new(p.clone(), d.clone()))
                                 }),
-                                lock, status.voltage.ok()
+                                lock, status.voltage
                             );
                         }
 
@@ -609,7 +609,8 @@ fn main_result() -> Result<i32, Error> {
                             let status = gpu.status()?;
                             let settings = gpu.settings()?;
 
-                            let points = status.vfp?.graphics.into_iter().zip(settings.vfp?.graphics.into_iter())
+                            let points = status.vfp.ok_or(Status::NotSupported)?.graphics
+                                .into_iter().zip(settings.vfp.ok_or(Status::NotSupported)?.graphics.into_iter())
                                 .map(|((i0, point), (i1, delta))| {
                                     assert_eq!(i0, i1);
                                     VfPoint::new(point, delta)
@@ -627,7 +628,7 @@ fn main_result() -> Result<i32, Error> {
                                 let input = matches.value_of("input").unwrap();
 
                                 let status = gpu.status()?;
-                                let vfp = status.vfp?.graphics;
+                                let vfp = status.vfp.ok_or(Status::NotSupported)?.graphics;
 
                                 fn import<R: io::Read>(read: R, delimiter: u8) -> Result<Vec<VfPoint>, csv::Error> {
                                     let mut csv = csv::ReaderBuilder::new().delimiter(delimiter).from_reader(read);
@@ -659,7 +660,7 @@ fn main_result() -> Result<i32, Error> {
                                 let v = if matches.is_present("voltage") {
                                     Microvolts(point)
                                 } else {
-                                    gpu.status()?.vfp?.graphics.get(&(point as usize))
+                                    gpu.status()?.vfp.ok_or(Status::NotSupported)?.graphics.get(&(point as usize))
                                         .ok_or(Error::Str("invalid point index"))?
                                         .voltage
                                 };
@@ -681,9 +682,9 @@ fn main_result() -> Result<i32, Error> {
                             let max = matches.value_of("max").map(u32::from_str).unwrap()?;
 
                             let status = gpu.status()?;
-                            let vfp = status.vfp?;
+                            let vfp = status.vfp.ok_or(Status::NotSupported)?;
                             let settings = gpu.settings()?;
-                            let vfp_delta = settings.vfp?;
+                            let vfp_delta = settings.vfp.ok_or(Status::NotSupported)?;
                             let end = end.unwrap_or(vfp.graphics.iter().map(|(&i, _)| i).max().unwrap());
 
                             let options = auto::AutoDetectOptions {

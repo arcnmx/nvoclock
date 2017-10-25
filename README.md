@@ -43,6 +43,9 @@ of a modern overclocking tool:
 - `-g 0` flag can be used to filter results and operations to a specific GPU
 - `-O json` prints out information in JSON format to be parsed or handled by
   automated scripts.
+- `set RUST_LOG=trace` to get excessive debugging information. You'll probably
+  want to use `nvoclock info 2> nvolog.txt` to save to a file for later
+  interpretation.
 
 ## Future Items
 
