@@ -33,7 +33,7 @@ use nvapi::{
     allowable_result
 };
 use clap::{Arg, App, SubCommand, AppSettings};
-use result::OptionResultExt;
+use result::prelude::*;
 use conv::ConvertEnum;
 use error::Error;
 use types::*;
