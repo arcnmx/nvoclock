@@ -32,9 +32,9 @@ of a modern overclocking tool:
 
 - `nvoclock info` displays information about the capabilities of detected GPUs
 - `nvoclock status` displays monitoring information about the GPU
+  - `nvoclock status -a` shows some fancy tables!
   - Use in combination with [watch(1)](https://linux.die.net/man/1/watch) for
     best results.
-- `nvoclock status -a` shows some fancy tables!
 - `nvoclock set` encompasses the usual options to overclock and tweak a GPU.
   Check `-h` for all the details.
 
@@ -53,6 +53,7 @@ Some things can be improved, and since most testing was done with a single
 pascal GPU there are some missing features for older hardware.
 
 - Previous generation GPUs need testing/support
+  - Overvolting support needs doing
 - RPC API + Daemon
   - Controls from another computer so autodetect can detect and survive crashes
     and full lock-ups.
