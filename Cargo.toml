@@ -24,7 +24,7 @@ opt-level = 2
 lto = true
 
 [dependencies]
-nvapi = { package = "nvapi-hi", version = "0.1.0", features = ["serde_types"] }
+nvapi = { package = "nvapi-hi", version = "0.2.0", features = ["serde_types"], git = "https://github.com/arcnmx/nvapi-rs" }
 clap = { version = "2.26.2", default-features = false }
 prettytable-rs = { version = "0.8.0", default-features = false }
 quick-error = "2.0.0"

@@ -227,22 +227,19 @@ checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 
 [[package]]
 name = "nvapi"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c63de8cd8362e2c38d1a48dea6ae68e6293a8d8d22a52180d0f8dcc779b3158"
+version = "0.2.0"
+source = "git+https://github.com/arcnmx/nvapi-rs#a442cf7f325e66212306c1bf5d27d3733275b200"
 dependencies = [
  "log",
  "nvapi-sys",
  "serde",
  "serde_derive",
- "void",
 ]
 
 [[package]]
 name = "nvapi-hi"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1dc525838dfdf073058b2a413013a7b09ac2c948d04e4622d59d41602e0d022a"
+version = "0.2.0"
+source = "git+https://github.com/arcnmx/nvapi-rs#a442cf7f325e66212306c1bf5d27d3733275b200"
 dependencies = [
  "nvapi",
  "serde",
@@ -251,13 +248,11 @@ dependencies = [
 
 [[package]]
 name = "nvapi-sys"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b29e9a9393c69ee856bfcf5f76ed1ef32d2c0dd6f58558fd43334278fc1e7ea7"
+version = "0.2.0"
+source = "git+https://github.com/arcnmx/nvapi-rs#a442cf7f325e66212306c1bf5d27d3733275b200"
 dependencies = [
  "bitflags",
  "serde",
- "serde_derive",
  "winapi",
 ]
 
@@ -459,12 +454,6 @@ name = "unicode-width"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ed742d4ea2bd1176e236172c8429aaf54486e7ac098db29ffe6529e0ce50973"
-
-[[package]]
-name = "void"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 
 [[package]]
 name = "wasi"
