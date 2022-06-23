@@ -7,7 +7,7 @@ use nvapi::{
     SensorDesc, SensorLimit, PStateLimit,
     Utilizations, UtilizationDomain,
 };
-use prettytable::{format, Table};
+use prettytable::{format, row, cell, Table};
 
 const HEADER_LEN: usize = 20;
 

@@ -1,4 +1,5 @@
 use clap::ArgMatches;
+use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct GpuDescriptor {

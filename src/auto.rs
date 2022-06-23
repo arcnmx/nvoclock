@@ -1,15 +1,14 @@
 use std::time::Duration;
 use std::thread::sleep;
 use std::{io, iter};
+use log::{warn, info};
 use nvapi::{
     Gpu, ClockDomain,
     CoolerPolicy, CoolerLevel,
     Microvolts, Kilohertz, KilohertzDelta, Percentage, Range,
+    nvapi::ClockFrequencyType,
 };
-use nvapi::nvapi::{
-    ClockFrequencyType,
-};
-use Error;
+use crate::Error;
 
 pub struct AutoDetectOptions {
     pub fan_override: bool,

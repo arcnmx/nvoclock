@@ -1,6 +1,6 @@
 use nvapi::{PState, CoolerPolicy, ClockDomain};
-use types::{ResetSettings, OutputFormat};
-use error::Error;
+use crate::types::{ResetSettings, OutputFormat};
+use crate::Error;
 
 pub trait ConvertEnum: Sized {
     fn from_str(s: &str) -> Result<Self, Error>;

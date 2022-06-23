@@ -1,18 +1,3 @@
-extern crate clap;
-#[macro_use]
-extern crate prettytable;
-extern crate nvapi_hi as nvapi;
-#[macro_use]
-extern crate quick_error;
-#[macro_use]
-extern crate log;
-extern crate env_logger;
-extern crate result;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-extern crate csv;
-
 mod auto;
 mod human;
 mod conv;
@@ -32,11 +17,11 @@ use nvapi::{
     ClockDomain, PState, CoolerPolicy, CoolerLevel, ClockLockMode,
     allowable_result
 };
+use log::info;
 use clap::{Arg, App, SubCommand, AppSettings};
-use result::prelude::*;
-use conv::ConvertEnum;
-use error::Error;
-use types::*;
+use self::conv::ConvertEnum;
+use self::error::Error;
+use self::types::*;
 
 fn main() {
     match main_result() {
@@ -417,7 +402,7 @@ fn main_result() -> Result<i32, Error> {
 
             let gpus = Gpu::enumerate()?;
             let gpus = select_gpus(&gpus, gpu)?;
-            let monitor = matches.value_of("monitor").map(f64::from_str).invert()?
+            let monitor = matches.value_of("monitor").map(f64::from_str).transpose()?
                 .map(|v| Duration::new(v as u64, (v.fract() * NANOS_IN_SECOND) as u32));
 
             loop {
@@ -625,7 +610,7 @@ fn main_result() -> Result<i32, Error> {
             let gpus = select_gpus(&gpus, gpu)?;
 
             for gpu in &gpus {
-                if let Some(vboost) = matches.value_of("vboost").map(u32::from_str).invert()? {
+                if let Some(vboost) = matches.value_of("vboost").map(u32::from_str).transpose()? {
                     gpu.set_voltage_boost(Percentage(vboost))?
                 }
 
@@ -738,7 +723,7 @@ fn main_result() -> Result<i32, Error> {
                         ("auto", Some(matches)) => {
                             let gpu = single_gpu(&gpus)?;
 
-                            let end = matches.value_of("end").map(usize::from_str).invert()?;
+                            let end = matches.value_of("end").map(usize::from_str).transpose()?;
                             let start = matches.value_of("start").map(usize::from_str).unwrap()?;
                             let step = matches.value_of("step").map(i32::from_str).unwrap()?;
                             let max = matches.value_of("max").map(u32::from_str).unwrap()?;

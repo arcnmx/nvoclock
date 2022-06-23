@@ -1,8 +1,8 @@
 use std::io;
 use std::num::{ParseIntError, ParseFloatError};
-use types::ResetSettings;
+use crate::types::ResetSettings;
+use quick_error::quick_error;
 use nvapi::{Status, error_message};
-use serde_json;
 
 quick_error! {
     #[derive(Debug)]

@@ -206,7 +206,7 @@ dependencies = [
 
 [[package]]
 name = "nvoclock"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "clap",
  "csv",
@@ -215,9 +215,7 @@ dependencies = [
  "nvapi-hi",
  "prettytable-rs",
  "quick-error",
- "result",
  "serde",
- "serde_derive",
  "serde_json",
 ]
 
@@ -282,12 +280,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49b3de9ec5dc0a3417da371aab17d729997c15010e7fd24ff707773a33bddb64"
 
 [[package]]
-name = "result"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "194d8e591e405d1eecf28819740abed6d719d1a2db87fc0bcdedee9a26d55560"
-
-[[package]]
 name = "ryu"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -298,6 +290,9 @@ name = "serde"
 version = "1.0.137"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61ea8d54c77f8315140a05f4c7237403bf38b72704d031543aa1d16abbf517d1"
+dependencies = [
+ "serde_derive",
+]
 
 [[package]]
 name = "serde_derive"
