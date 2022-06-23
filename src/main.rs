@@ -120,7 +120,7 @@ fn main_result() -> Result<i32, Error> {
                 .default_value_if("all", None, POSSIBLE_BOOL_ON)
                 .help("Show cooler info")
             ).arg(Arg::with_name("sensors")
-                .short("s")
+                .short("S")
                 .long("sensors")
                 .value_name("SHOW")
                 .takes_value(true)
