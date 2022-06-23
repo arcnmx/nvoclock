@@ -13,22 +13,22 @@ quick_error! {
         }
         Io(err: io::Error) {
             from()
-            cause(err)
+            source(err)
             display("IO error: {}", err)
         }
         Json(err: serde_json::Error) {
             from()
-            cause(err)
+            source(err)
             display("JSON error: {}", err)
         }
         ParseInt(err: ParseIntError) {
             from()
-            cause(err)
+            source(err)
             display("{}", err)
         }
         ParseFloat(err: ParseFloatError) {
             from()
-            cause(err)
+            source(err)
             display("{}", err)
         }
         Str(err: &'static str) {
