@@ -23,12 +23,12 @@ opt-level = 2
 lto = true
 
 [dependencies]
-nvapi-hi = { version = "0.0.3", features = ["serde_types"] }
+nvapi-hi = { version = "0.1.0", features = ["serde_types"] }
 clap = { version = "2.26.2", default-features = false }
 prettytable-rs = { version = "0.6.7", default-features = false }
 quick-error = "1.2.1"
-log = "0.3.8"
-env_logger = "0.4.3"
+log = "0.4.0"
+env_logger = "0.9.0"
 csv = "^1.0.0-beta.5"
 serde = "^1.0.0"
 serde_derive = "^1.0.0"

@@ -61,9 +61,7 @@ fn export_vfp<W: Write, I: Iterator<Item=VfPoint>>(write: W, points: I, delimite
 }
 
 fn main_result() -> Result<i32, Error> {
-    if let Err(e) = env_logger::init() {
-        let _ = writeln!(io::stderr(), "Failed to initialize env_logger: {}", e);
-    }
+    env_logger::init();
 
     let app = App::new("newclock")
         .version(env!("CARGO_PKG_VERSION"))

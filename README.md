@@ -1,6 +1,6 @@
 # nvoclock
 
-[![travis-badge][]][travis] [![release-badge][]][cargo] [![license-badge][]][license]
+[![release-badge][]][cargo] [![license-badge][]][license]
 
 `nvoclock` is a command-line interface to NVAPI that supports full monitoring
 and overclocking of NVIDIA GPUs on Windows platforms.
@@ -73,8 +73,6 @@ tool. The following features would better belong in a separate project:
 - Linux support (`nvapi` is not available)
 - Software fan curve control (I'll get around to a daemon for this eventually)
 
-[travis-badge]: https://img.shields.io/travis/arcnmx/nvoclock/master.svg?style=flat-square
-[travis]: https://travis-ci.org/arcnmx/nvoclock
 [release-badge]: https://img.shields.io/crates/v/nvoclock.svg?style=flat-square
 [cargo]: https://crates.io/crates/nvoclock
 [license-badge]: https://img.shields.io/badge/license-MIT-ff69b4.svg?style=flat-square
