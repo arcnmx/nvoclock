@@ -12,12 +12,12 @@ use std::str::FromStr;
 use std::io::{self, Write};
 use std::{fs, iter};
 use nvapi::{
-    Status, Gpu, GpuInfo, GpuSettings,
+    Gpu, GpuInfo, GpuSettings,
     Percentage, Celsius, Kilohertz, KilohertzDelta, Microvolts, VfPoint,
     ClockDomain, PState, CoolerPolicy, CoolerLevel, ClockLockMode,
     allowable_result
 };
-use log::info;
+use log::{info, warn};
 use clap::{Arg, App, SubCommand, AppSettings};
 use self::conv::ConvertEnum;
 use self::error::Error;
@@ -351,7 +351,7 @@ fn main_result() -> Result<i32, Error> {
         };
 
         if v.is_empty() {
-            Err(Error::from(Status::NvidiaDeviceNotFound))
+            Err(Error::DeviceNotFound)
         } else {
             Ok(v)
         }
@@ -363,7 +363,7 @@ fn main_result() -> Result<i32, Error> {
         ("list", Some(..)) => {
             let gpus = Gpu::enumerate()?
                 .into_iter()
-                .map(|gpu| Ok::<_, Status>(GpuDescriptor {
+                .map(|gpu| Ok::<_, nvapi::Error>(GpuDescriptor {
                     name: gpu.inner().full_name()?,
                 })).collect::<Result<Vec<_>, _>>()?;
 
@@ -471,8 +471,8 @@ fn main_result() -> Result<i32, Error> {
                             if show_vfp {
                                 let set = requires_set(gpu, &mut set)?;
 
-                                let vfp = status.vfp.as_ref().ok_or(Status::NotSupported)?;
-                                let vfp_deltas = set.vfp.as_ref().ok_or(Status::NotSupported)?;
+                                let vfp = status.vfp.as_ref().ok_or(Error::VfpUnsupported)?;
+                                let vfp_deltas = set.vfp.as_ref().ok_or(Error::VfpUnsupported)?;
                                 let lock = set.vfp_locks.iter().map(|(_, e)| e)
                                     .filter(|&e| e.mode == ClockLockMode::Manual).map(|e| e.voltage).max();
                                 human::print_vfp(vfp.graphics.iter().zip(vfp_deltas.graphics.iter())
@@ -549,8 +549,8 @@ fn main_result() -> Result<i32, Error> {
                 (ResetSettings::possible_values_typed().iter().cloned().collect::<Vec<_>>(), false)
             };
 
-            fn warn_result(r: nvapi::Result<()>, setting: ResetSettings, explicit: bool) -> Result<(), Error> {
-                match (allowable_result(r).map_err(|e| (setting, e))?, explicit) {
+            fn warn_result<E: Into<nvapi::Error>>(r: Result<(), E>, setting: ResetSettings, explicit: bool) -> Result<(), Error> {
+                match (allowable_result(r).map_err(|e| (setting, e.into()))?, explicit) {
                     (Err(e), true) => Err((setting, e).into()),
                     _ => Ok(()),
                 }
@@ -596,11 +596,8 @@ fn main_result() -> Result<i32, Error> {
                                 setting, explicit
                             )?
                         },
-                        ResetSettings::Overvolt => warn_result(
-                            // TODO: reset overvolt
-                            Err(Status::NoImplementation),
-                            setting, explicit
-                        )?,
+                        ResetSettings::Overvolt =>
+                            warn!("TODO: ResetSettings::Overvolt"),
                     }
                 }
             }
@@ -656,8 +653,8 @@ fn main_result() -> Result<i32, Error> {
                             let status = gpu.status()?;
                             let settings = gpu.settings()?;
 
-                            let points = status.vfp.ok_or(Status::NotSupported)?.graphics
-                                .into_iter().zip(settings.vfp.ok_or(Status::NotSupported)?.graphics.into_iter())
+                            let points = status.vfp.ok_or(Error::VfpUnsupported)?.graphics
+                                .into_iter().zip(settings.vfp.ok_or(Error::VfpUnsupported)?.graphics.into_iter())
                                 .map(|((i0, point), (i1, delta))| {
                                     assert_eq!(i0, i1);
                                     VfPoint::new(point, delta)
@@ -675,7 +672,7 @@ fn main_result() -> Result<i32, Error> {
                                 let input = matches.value_of("input").unwrap();
 
                                 let status = gpu.status()?;
-                                let vfp = status.vfp.ok_or(Status::NotSupported)?.graphics;
+                                let vfp = status.vfp.ok_or(Error::VfpUnsupported)?.graphics;
 
                                 fn import<R: io::Read>(read: R, delimiter: u8) -> Result<Vec<VfPoint>, csv::Error> {
                                     let mut csv = csv::ReaderBuilder::new().delimiter(delimiter).from_reader(read);
@@ -707,7 +704,7 @@ fn main_result() -> Result<i32, Error> {
                                 let v = if matches.is_present("voltage") {
                                     Microvolts(point)
                                 } else {
-                                    gpu.status()?.vfp.ok_or(Status::NotSupported)?.graphics.get(&(point as usize))
+                                    gpu.status()?.vfp.ok_or(Error::VfpUnsupported)?.graphics.get(&(point as usize))
                                         .ok_or(Error::Str("invalid point index"))?
                                         .voltage
                                 };
@@ -729,9 +726,9 @@ fn main_result() -> Result<i32, Error> {
                             let max = matches.value_of("max").map(u32::from_str).unwrap()?;
 
                             let status = gpu.status()?;
-                            let vfp = status.vfp.ok_or(Status::NotSupported)?;
+                            let vfp = status.vfp.ok_or(Error::VfpUnsupported)?;
                             let settings = gpu.settings()?;
-                            let vfp_delta = settings.vfp.ok_or(Status::NotSupported)?;
+                            let vfp_delta = settings.vfp.ok_or(Error::VfpUnsupported)?;
                             let end = end.unwrap_or(vfp.graphics.iter().map(|(&i, _)| i).max().unwrap());
 
                             let options = auto::AutoDetectOptions {
