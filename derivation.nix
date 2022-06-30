@@ -19,7 +19,7 @@ in rustPlatform.buildRustPackage {
     windows.pthreads
   ];
 
-  cargoSha256 = "sha256-tGnfK4yZ5HB6xH3gFn3gPRJV8mf+FkXx5WRIy6II2qU=";
+  cargoSha256 = "sha256-eJR3fDlCQd3+N7bTfVTTe5PV7c4WLYgirl9LUR23AiM=";
   doCheck = false;
   meta = {
     platforms = platforms.windows;

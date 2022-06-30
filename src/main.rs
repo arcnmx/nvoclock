@@ -688,8 +688,7 @@ fn main_result() -> Result<i32, Error> {
                                     import(fs::File::open(input)?, delimiter)
                                 }.map_err(io::Error::from)?;
 
-                                gpu.inner().set_vfp_table(
-                                    [0, 0, 0, 0],
+                                gpu.set_vfp(
                                     input.into_iter().filter_map(|point|
                                         vfp.iter()
                                             .find(|&(_, ref v)| v.voltage == point.voltage)

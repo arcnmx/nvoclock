@@ -228,7 +228,7 @@ checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 [[package]]
 name = "nvapi"
 version = "0.2.0"
-source = "git+https://github.com/arcnmx/nvapi-rs#a442cf7f325e66212306c1bf5d27d3733275b200"
+source = "git+https://github.com/arcnmx/nvapi-rs?branch=vfp#bc3d93779f35ed54af904b7566978bad9655f77b"
 dependencies = [
  "log",
  "nvapi-sys",
@@ -239,9 +239,10 @@ dependencies = [
 [[package]]
 name = "nvapi-hi"
 version = "0.2.0"
-source = "git+https://github.com/arcnmx/nvapi-rs#a442cf7f325e66212306c1bf5d27d3733275b200"
+source = "git+https://github.com/arcnmx/nvapi-rs?branch=vfp#bc3d93779f35ed54af904b7566978bad9655f77b"
 dependencies = [
  "nvapi",
+ "once_cell",
  "serde",
  "serde_derive",
 ]
@@ -249,7 +250,7 @@ dependencies = [
 [[package]]
 name = "nvapi-sys"
 version = "0.2.0"
-source = "git+https://github.com/arcnmx/nvapi-rs#a442cf7f325e66212306c1bf5d27d3733275b200"
+source = "git+https://github.com/arcnmx/nvapi-rs?branch=vfp#bc3d93779f35ed54af904b7566978bad9655f77b"
 dependencies = [
  "bitflags",
  "serde",
