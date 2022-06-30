@@ -752,6 +752,7 @@ fn main_result() -> Result<i32, Error> {
                                     Ok(Some((delta, frequency))) => {
                                         results.insert(i, VfPoint {
                                             voltage: point.voltage,
+                                            default_frequency: point.default_frequency,
                                             frequency: frequency,
                                             delta: delta,
                                         });

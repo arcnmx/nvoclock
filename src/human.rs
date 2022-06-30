@@ -417,7 +417,7 @@ pub fn print_sensors<'a, I: Iterator<Item=(&'a SensorDesc, Option<(&'a SensorLim
 pub fn print_vfp<I: Iterator<Item=(usize, VfPoint)>>(vfp: I, lock: Option<Microvolts>, core: Option<Microvolts>) {
     let mut table = Table::new();
     table.set_format(table_format());
-    table.set_titles(row!["VFP", "Voltage", "Frequency", "Offset"]);
+    table.set_titles(row!["VFP", "Voltage", "Frequency", "Offset", "Default"]);
 
     for (i, point) in vfp {
         let mut flags = String::new();
@@ -428,7 +428,7 @@ pub fn print_vfp<I: Iterator<Item=(usize, VfPoint)>>(vfp: I, lock: Option<Microv
             flags.push('^');
         }
 
-        table.add_row(row![format!("{}{}", i, flags), point.voltage, point.frequency, point.delta]);
+        table.add_row(row![format!("{}{}", i, flags), point.voltage, point.frequency, point.delta, point.default_frequency]);
     }
     table.print_tty(false);
 }
