@@ -85,6 +85,19 @@ pub fn print_status(status: &GpuStatus) {
         status.memory.dedicated_available,
         status.memory.dedicated_evictions, status.memory.dedicated_evictions_size,
     );
+    if status.ecc.enabled {
+        pline!("ECC Errors", "{} 1-bit, {} 2-bit",
+            status.ecc.errors.current.single_bit_errors,
+            status.ecc.errors.current.double_bit_errors);
+        if status.ecc.errors.current != status.ecc.errors.aggregate {
+            pline!("ECC Errors", "{} 1-bit, {} 2-bit (Aggregate)",
+                status.ecc.errors.aggregate.single_bit_errors,
+                status.ecc.errors.aggregate.double_bit_errors);
+        }
+    }
+    if let Some(lanes) = status.pcie_lanes {
+        pline!("PCIe Bus Width", "x{}", lanes);
+    }
     pline!("Core Voltage", "{}", status.voltage.map(|v| v.to_string()).unwrap_or_else(n_a));
     pline!("Limits", "{}",
         status.perf.limits.fold(None, |state, v| if let Some(state) = state {
@@ -201,7 +214,8 @@ pub fn print_status(status: &GpuStatus) {
 
 pub fn print_info(info: &GpuInfo) {
     pline!("GPU", "{} ({})", info.name, info.codename);
-    pline!("Vendor", "{}", info.vendor);
+    pline!("Architecture", "{} ({})", info.arch, info.gpu_type);
+    pline!("Vendor", "{}", info.vendor().unwrap_or_default());
     pline!("GPU Shaders", "{} ({}:{} pipes)",
         info.core_count, info.shader_pipe_count, info.shader_sub_pipe_count);
     pline!("Video Memory", "{:.2} {}-bit",
@@ -213,8 +227,14 @@ pub fn print_info(info: &GpuInfo) {
     pline!("Memory Avail", "{:.2}", info.memory.dedicated_available);
     pline!("Shared Memory", "{:.2} ({:.2} system)",
         info.memory.shared, info.memory.system);
+    pline!("ECC", "{} ({})",
+        if info.ecc.info.enabled { "Yes" } else if info.ecc.info.supported { "Disabled" } else { "Unupported" },
+        info.ecc.info.configuration);
     pline!("Foundry", "{}", info.foundry);
-    pline!("PCI ID", "{}", info.pci);
+    pline!("Bus", "{}", info.bus);
+    if let Some(ids) = info.bus.bus.pci_ids() {
+        pline!("PCI IDs", "{}", ids);
+    }
     pline!("BIOS Version", "{}", info.bios_version);
     pline!("Driver Model", "{}", info.driver_model);
     pline!("Limit Support", "{}",

@@ -320,6 +320,7 @@ fn main_result() -> Result<i32, Error> {
     let driver_version = nvapi::driver_version()?;
     info!("Driver version: {} ({})", driver_version.1, driver_version.0);
     info!("Interface version: {}", nvapi::interface_version()?);
+    info!("System Chipset: {:?}", nvapi::chipset_info()?);
 
     let gpu = matches.values_of("gpu");
 
