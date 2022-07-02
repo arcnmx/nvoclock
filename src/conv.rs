@@ -115,8 +115,8 @@ enum_from_str! {
         TemperatureDiscrete = "discrete",
         TemperatureContinuous = "continuous",
         Hybrid = "hybrid",
-        Silent = "silent",
-        Unknown32 = "32",
+        TemperatureContinuousSoftware = "software",
+        Default = "default32",
         _ => "unknown cooler policy",
     }
 }

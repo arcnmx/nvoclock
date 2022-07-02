@@ -463,9 +463,11 @@ fn main_result() -> Result<i32, Error> {
                             }
 
                             if show_coolers {
+                                let info = requires_info(gpu, &mut info)?;
+                                let set = requires_set(gpu, &mut set)?;
+
                                 human::print_coolers(
-                                    status.coolers.iter().map(|&(ref desc, ref cooler)| (desc, cooler)),
-                                    status.tachometer
+                                    info.coolers.iter().map(|(i, info)| (*i, info, &status.coolers[i], &set.coolers[i]))
                                 );
                             }
 

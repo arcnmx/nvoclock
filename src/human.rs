@@ -3,7 +3,7 @@ use nvapi::{
     GpuInfo, GpuStatus, GpuSettings,
     Celsius, KilohertzDelta, VfPoint,
     ClockDomain, ClockFrequencies, VoltageDomain, Microvolts, PState,
-    CoolerDesc, CoolerStatus, CoolerControl, ClockLockMode,
+    FanCoolerId, CoolerInfo, CoolerStatus, CoolerSettings, CoolerControl,
     SensorDesc, SensorLimit, PStateLimit,
     Utilizations, UtilizationDomain,
 };
@@ -50,8 +50,8 @@ pub fn print_settings(set: &GpuSettings) {
     for limit in &set.power_limits {
         pline!("Power Limit", "{}", limit);
     }
-    for &(ref desc, ref cooler) in &set.coolers {
-        pline!(format!("Cooler {}", desc.kind), "{}", cooler.level);
+    for (id, cooler) in &set.coolers {
+        pline!(format!("Cooler {}", id), "{} ({})", cooler.level, cooler.current_policy);
     }
     for (pstate, clock, delta) in set.pstate_deltas.iter().flat_map(|(ps, d)| d.iter().map(move |(clock, d)| (ps, clock, d))) {
         pline!(format!("{} @ {} Offset", clock, pstate), "{}", delta);
@@ -127,21 +127,18 @@ pub fn print_status(status: &GpuStatus) {
         pline!("Sensor", "{} ({} / {})", temp, sensor.controller, sensor.target);
     }
 
-    for (i, &(ref cooler, ref entry)) in status.coolers.iter().enumerate() {
-        let level = match cooler.control {
-            CoolerControl::None => n_a(),
-            CoolerControl::Toggle => if entry.active {
-                "On".into()
-            } else {
-                "Off".into()
-            },
-            CoolerControl::Variable => entry.level.to_string(),
+    for (i, cooler) in &status.coolers {
+        let variable_control = true; // TODO!!
+        let level = match cooler.active {
+            true if variable_control => cooler.current_level.to_string(),
+            true => "On".into(),
+            false => "Off".into(),
         };
-        let tach = status.tachometer.as_ref()
-            .and_then(|&t| if i == 0 { Some(format!(" ({} RPM)", t)) } else { None })
-            .unwrap_or_else(|| String::new());
-        pline!(format!("Cooler {}", cooler.kind), "{}{}", level, tach);
-        pline!("Cooler Mode", "{}", entry.policy);
+        let tach = match cooler.current_tach {
+            Some(tach) => format!(" ({})", tach),
+            None => String::new(),
+        };
+        pline!(format!("Cooler {}", i), "{}{}", level, tach);
     }
 }
 
@@ -275,16 +272,27 @@ pub fn print_info(info: &GpuInfo) {
         );
     }
 
-    for (_, cooler) in info.coolers.iter().enumerate() {
-        pline!(format!("Cooler {}", cooler.kind), "{} / {} ({} range)",
-            cooler.controller, cooler.target,
-            match cooler.control {
-                CoolerControl::Variable => cooler.range.to_string(),
-                CoolerControl::Toggle => "On/Off".into(),
-                CoolerControl::None => n_a(),
+    for (id, cooler) in info.coolers.iter() {
+        let range =  match (cooler.default_level_range, cooler.tach_range) {
+            (Some(level), Some(tach)) => Some(format!("{} / {}", level, tach)),
+            (None, Some(tach)) => Some(tach.to_string()),
+            (Some(level), None) => Some(level.to_string()),
+            (None, None) => None,
+        };
+        pline!(format!("Cooler {}", id), "{} / {} / {}{}",
+            cooler.kind, cooler.controller, cooler.target,
+            match range {
+                Some(range) => format!(" ({} range)", range),
+                None => match cooler.control {
+                    CoolerControl::Variable => "",
+                    CoolerControl::Toggle => "(On/Off control)",
+                    CoolerControl::None => " (Read-only)",
+                }.into(),
             },
         );
-        pline!("Cooler Default", "{} Mode", cooler.default_policy);
+        if cooler.default_policy != nvapi::CoolerPolicy::None {
+            pline!(format!("Cooler {} Default", id), "{} Mode", cooler.default_policy);
+        }
     }
 }
 
@@ -380,11 +388,11 @@ pub fn print_clocks(base: &ClockFrequencies, boost: &ClockFrequencies, current: 
     table.print_tty(false);
 }
 
-pub fn print_coolers<'a, I: Iterator<Item=(&'a CoolerDesc, &'a CoolerStatus)>>(coolers: I, tach: Option<u32>) {
+pub fn print_coolers<'a, I: Iterator<Item=(FanCoolerId, &'a CoolerInfo, &'a CoolerStatus, &'a CoolerSettings)>>(coolers: I) {
     let mut table = Table::new();
     table.set_format(table_format());
-    table.set_titles(row!["Cooler", "Controller", "Target", "Level", "RPM", "Range", "Mode", "Default"]);
-    for (i, (cooler, status)) in coolers.enumerate() {
+    table.set_titles(row!["Cooler", "Type", "Controller", "Target", "Level", "Speed", "Range", "Setting", "Mode", "Default"]);
+    for (id, cooler, status, control) in coolers {
         let (level, range) = match cooler.control {
             CoolerControl::None => (n_a(), n_a()),
             CoolerControl::Toggle => (if status.active {
@@ -392,10 +400,13 @@ pub fn print_coolers<'a, I: Iterator<Item=(&'a CoolerDesc, &'a CoolerStatus)>>(c
             } else {
                 "Off".into()
             }, "On / Off".into()),
-            CoolerControl::Variable => (status.level.to_string(), cooler.range.to_string()),
+            CoolerControl::Variable => (status.current_level.to_string(), status.current_level_range.to_string()),
         };
-        let tach = tach.and_then(|t| if i == 0 { Some(t.to_string()) } else { None }).unwrap_or_else(n_a);
-        table.add_row(row![cooler.kind, cooler.controller, cooler.target, level, tach, range, status.policy, cooler.default_policy]);
+        let tach = match status.current_tach {
+            Some(tach) => tach.to_string(),
+            None => n_a(),
+        };
+        table.add_row(row![id, cooler.kind, cooler.controller, cooler.target, level, tach, range, control.level, control.current_policy, cooler.default_policy]);
     }
     table.print_tty(false);
 }
