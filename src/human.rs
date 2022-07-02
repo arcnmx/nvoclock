@@ -229,7 +229,7 @@ pub fn print_info(info: &GpuInfo) {
     pline!("Shared Memory", "{:.2} ({:.2} system)",
         info.memory.shared, info.memory.system);
     pline!("ECC", "{} ({})",
-        if info.ecc.info.enabled { "Yes" } else if info.ecc.info.supported { "Disabled" } else { "Unupported" },
+        if info.ecc.info.enabled { "Yes" } else if info.ecc.info.supported { "Disabled" } else { "N/A" },
         info.ecc.info.configuration);
     pline!("Foundry", "{}", info.foundry);
     pline!("Bus", "{}", info.bus);
