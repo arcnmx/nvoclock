@@ -59,9 +59,9 @@ pub fn print_settings(set: &GpuSettings) {
     for ov in &set.overvolt {
         pline!("Overvolt", "{}", ov);
     }
-    for (_, lock) in &set.vfp_locks {
-        if lock.mode == ClockLockMode::Manual {
-            pline!("VFP Lock", "{}", lock.voltage);
+    for (id, lock) in &set.vfp_locks {
+        if let Some(value) = lock.lock_value {
+            pline!(format!("VFP Lock {}", id), "{}", value);
         }
     }
 }
@@ -74,10 +74,10 @@ pub fn print_settings(set: &GpuSettings) {
 pub fn print_status(status: &GpuStatus) {
     pline!("Power State", "{}", status.pstate);
     pline!("Power Usage", "{}", 
-        status.power.iter().fold(None, |state, v| if let Some(state) = state {
-            Some(format!("{}, {}", state, v))
+        status.power.iter().fold(None, |state, (ch, power)| if let Some(state) = state {
+            Some(format!("{}, {} ({})", state, power, ch))
         } else {
-            Some(v.to_string())
+            Some(format!("{} ({})", power, ch))
         }).unwrap_or_else(n_a)
     );
     pline!("Memory Usage", "{:.2} / {:.2} ({} evictions totalling {:.2})",
@@ -107,8 +107,12 @@ pub fn print_status(status: &GpuStatus) {
         }).unwrap_or_else(n_a)
     );
     pline!("VFP Lock", "{}",
-        status.vfp_locks.iter().map(|(_, v)| v).max_by_key(|v| v.0)
-            .map(|v| v.to_string()).unwrap_or_else(|| "None".into())
+        if status.vfp_locks.is_empty() {
+            "None".into()
+        } else {
+            status.vfp_locks.iter().map(|(limit, lock)| format!("{}:{}", limit, lock))
+                .collect::<Vec<_>>().join(", ")
+        },
     );
 
     for (clock, freq) in &status.clocks {

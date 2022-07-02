@@ -90,7 +90,7 @@ impl<'a> AutoDetect<'a> {
     }
 
     pub fn set_voltage(&mut self, voltage: Microvolts, frequency: Kilohertz) -> Result<bool, Error> {
-        self.gpu.set_vfp_lock(voltage)?;
+        self.gpu.set_vfp_lock_voltage(Some(voltage))?;
         let reached_voltage = if !self.wait_for_voltage(voltage, frequency, self.options.voltage_wait_delay)? {
             let full = Percentage(100);
             if self.voltage_boost < full {

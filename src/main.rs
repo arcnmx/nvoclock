@@ -14,7 +14,7 @@ use std::{fs, iter};
 use nvapi::{
     Gpu, GpuInfo, GpuSettings,
     Percentage, Celsius, Kilohertz, KilohertzDelta, Microvolts, VfPoint,
-    ClockDomain, PState, CoolerPolicy, CoolerLevel, ClockLockMode,
+    ClockDomain, PState, CoolerPolicy, CoolerLevel,
     allowable_result
 };
 use log::{info, warn};
@@ -475,7 +475,7 @@ fn main_result() -> Result<i32, Error> {
                                 let vfp = status.vfp.as_ref().ok_or(Error::VfpUnsupported)?;
                                 let vfp_deltas = set.vfp.as_ref().ok_or(Error::VfpUnsupported)?;
                                 let lock = set.vfp_locks.iter().map(|(_, e)| e)
-                                    .filter(|&e| e.mode == ClockLockMode::Manual).map(|e| e.voltage).max();
+                                    .filter_map(|e| e.lock_value).filter_map(|e| e.voltage()).max();
                                 human::print_vfp(vfp.graphics.iter().zip(vfp_deltas.graphics.iter())
                                     .map(|((i0, p), (i1, d))| {
                                         assert_eq!(i0, i1);
@@ -709,7 +709,7 @@ fn main_result() -> Result<i32, Error> {
                                         .voltage
                                 };
 
-                                gpu.set_vfp_lock(v)?;
+                                gpu.set_vfp_lock_voltage(Some(v))?;
                             }
                         },
                         ("unlock", Some(..)) => {
