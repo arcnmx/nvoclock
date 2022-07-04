@@ -224,7 +224,7 @@ pub fn print_status(status: &GpuStatus) {
 */
 
 pub fn print_info(info: &GpuInfo) {
-    pline!("GPU", "{} ({})", info.name, info.codename);
+    pline!(format!("GPU {}", info.id), "{} ({})", info.name, info.codename);
     pline!("Architecture", "{} ({})", info.arch, info.gpu_type);
     pline!("Vendor", "{}", info.vendor().unwrap_or_default());
     pline!("GPU Shaders", "{} ({}:{} pipes)",

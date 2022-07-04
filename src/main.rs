@@ -58,7 +58,7 @@ fn main_result() -> Result<i32, Error> {
             .value_name("GPU")
             .takes_value(true)
             .multiple(true)
-            .help("GPU index")
+            .help("GPU ID")
         ).arg(Arg::with_name("oformat")
             .short("O")
             .long("output-format")
@@ -338,9 +338,9 @@ fn main_result() -> Result<i32, Error> {
             Some(gpu) => {
                 let gpu = gpu.map(usize::from_str).collect::<Result<Vec<_>, _>>()?;
 
-                gpus.iter().enumerate().filter_map(|(i, g)| {
+                gpus.iter().filter_map(|g| {
                     for &gpu in &gpu {
-                        if i == gpu {
+                        if g.id() == gpu {
                             return Some(g)
                         }
                     }
