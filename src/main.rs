@@ -14,7 +14,7 @@ use std::{fs, iter};
 use nvapi::{
     Gpu, GpuInfo, GpuSettings,
     Percentage, Celsius, Kilohertz, KilohertzDelta, Microvolts, VfPoint,
-    ClockDomain, PState, CoolerPolicy, CoolerLevel,
+    ClockDomain, PState, CoolerPolicy, CoolerSettings, FanCoolerId,
     allowable_result
 };
 use log::{info, warn};
@@ -640,10 +640,10 @@ fn main_result() -> Result<i32, Error> {
                         let mode = matches.value_of("policy").map(CoolerPolicy::from_str).unwrap()?;
                         let level = matches.value_of("level").map(u32::from_str).unwrap()?;
 
-                        gpu.set_cooler_levels(vec![CoolerLevel {
+                        gpu.set_cooler_levels([(FanCoolerId::Cooler1, CoolerSettings {
                             policy: mode,
-                            level: Percentage(level),
-                        }].into_iter())?
+                            level: Some(Percentage(level)),
+                        })].into_iter())?
                     }
                 },
                 ("vfp", Some(matches)) => {

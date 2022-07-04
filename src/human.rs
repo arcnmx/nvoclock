@@ -61,7 +61,10 @@ pub fn print_settings(set: &GpuSettings) {
         pline!("Power Limit", "{}", limit);
     }
     for (id, cooler) in &set.coolers {
-        pline!(format!("Cooler {}", id), "{} ({})", cooler.level, cooler.current_policy);
+        pline!(format!("Cooler {}", id), "{}", match cooler.level {
+            Some(level) => level.to_string(),
+            None => cooler.policy.to_string(),
+        });
     }
     for (pstate, clock, delta) in set.pstate_deltas.iter().flat_map(|(ps, d)| d.iter().map(move |(clock, d)| (ps, clock, d))) {
         pline!(format!("{} @ {} Offset", clock, pstate), "{}", delta);
@@ -418,7 +421,11 @@ pub fn print_coolers<'a, I: Iterator<Item=(FanCoolerId, &'a CoolerInfo, &'a Cool
             Some(tach) => tach.to_string(),
             None => n_a(),
         };
-        table.add_row(row![id, cooler.kind, cooler.controller, cooler.target, level, tach, range, control.level, control.current_policy, cooler.default_policy]);
+        let level = match control.level {
+            Some(level) => level.to_string(),
+            None => n_a(),
+        };
+        table.add_row(row![id, cooler.kind, cooler.controller, cooler.target, level, tach, range, level, control.policy, cooler.default_policy]);
     }
     table.print_tty(false);
 }

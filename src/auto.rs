@@ -4,7 +4,7 @@ use std::{io, iter};
 use log::{warn, info};
 use nvapi::{
     Gpu, ClockDomain,
-    CoolerPolicy, CoolerLevel,
+    CoolerPolicy, CoolerSettings,
     Microvolts, Kilohertz, KilohertzDelta, Percentage, Range,
     nvapi::ClockFrequencyType,
 };
@@ -67,10 +67,9 @@ impl<'a> AutoDetect<'a> {
 
     pub fn test_prepare(&self) -> Result<(), Error> {
         if !self.options.fan_override {
-            self.gpu.set_cooler_levels(vec![CoolerLevel {
-                policy: CoolerPolicy::Manual,
-                level: Percentage(85),
-            }].into_iter())?
+            self.gpu.set_cooler_levels(self.gpu.info()?.coolers.into_iter()
+                .map(|(id, _)| (id, CoolerSettings::new(Some(Percentage(85))))),
+            )?
         }
 
         let info = self.gpu.info()?;
