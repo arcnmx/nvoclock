@@ -456,7 +456,7 @@ fn main_result() -> Result<i32, Error> {
                                 let set = requires_set(gpu, &mut set)?;
 
                                 human::print_sensors(status.sensors.iter()
-                                    .zip(info.sensor_limits.iter().zip(set.sensor_limits.iter().cloned())
+                                    .zip(info.sensor_limits.iter().zip(set.sensor_limits.iter())
                                         .map(Some).chain(iter::repeat(None))
                                     ).map(|(&(ref desc, temp), limit)| (desc, limit, temp))
                                 );
@@ -569,7 +569,7 @@ fn main_result() -> Result<i32, Error> {
                             setting, explicit
                         )?,
                         ResetSettings::SensorLimits => warn_result(
-                            gpu.set_sensor_limits(info.sensor_limits.iter().map(|info| info.default)),
+                            gpu.set_sensor_limits(info.sensor_limits.iter().cloned().map(nvapi::SensorThrottle::from_default)),
                             setting, explicit
                         )?,
                         ResetSettings::PowerLimits => warn_result(
@@ -620,7 +620,7 @@ fn main_result() -> Result<i32, Error> {
                 }
 
                 if let Some(tlimit) = matches.values_of("tlimit") {
-                    let tlimit = tlimit.map(i32::from_str).map(|v| v.map(|v| Celsius(v))).collect::<Result<Vec<_>, _>>()?;
+                    let tlimit = tlimit.map(i32::from_str).map(|v| v.map(|v| Celsius(v).into())).collect::<Result<Vec<_>, _>>()?;
                     gpu.set_sensor_limits(tlimit.into_iter())?
                 }
             }

@@ -4,7 +4,7 @@ use nvapi::{
     Celsius, KilohertzDelta, VfPoint,
     ClockDomain, ClockFrequencies, VoltageDomain, Microvolts, PState,
     FanCoolerId, CoolerInfo, CoolerStatus, CoolerSettings, CoolerControl,
-    SensorDesc, SensorLimit, PStateLimit,
+    SensorDesc, SensorLimit, SensorThrottle, PStateLimit,
     Utilizations, UtilizationDomain,
 };
 use prettytable::{format, row, cell, Table};
@@ -45,7 +45,17 @@ pub fn print_settings(set: &GpuSettings) {
         pline!("Voltage Boost", "{}", boost);
     }
     for limit in &set.sensor_limits {
-        pline!("Thermal Limit", "{}", limit);
+        pline!("Thermal Limit", "{}{}{}",
+            limit.value,
+            match &limit.curve {
+                Some(pff) => format!(": {}", pff),
+                None => n_a(),
+            },
+            if limit.remove_tdp_limit {
+                " (TDP Limit Removed)"
+            } else {
+                ""
+            });
     }
     for limit in &set.power_limits {
         pline!("Power Limit", "{}", limit);
@@ -266,10 +276,12 @@ pub fn print_info(info: &GpuInfo) {
     {
         pline!("Thermal Sensor", "{} / {} ({} range)",
             sensor.controller, sensor.target, sensor.range);
-        pline!("Thermal Limit", "{} ({} default)",
-            limit.map(|l| l.range.to_string()).unwrap_or_else(n_a),
-            limit.map(|l| l.default.to_string()).unwrap_or_else(n_a),
-        );
+        if let Some(limit) = limit {
+            pline!("Thermal Limit", "{} ({} default)", limit.range, limit.default);
+            if let Some(pff) = &limit.throttle_curve {
+                pline!("Thermal Throttle", "{}", pff);
+            }
+        }
     }
 
     for (id, cooler) in info.coolers.iter() {
@@ -411,13 +423,13 @@ pub fn print_coolers<'a, I: Iterator<Item=(FanCoolerId, &'a CoolerInfo, &'a Cool
     table.print_tty(false);
 }
 
-pub fn print_sensors<'a, I: Iterator<Item=(&'a SensorDesc, Option<(&'a SensorLimit, Celsius)>, Celsius)>>(sensors: I) {
+pub fn print_sensors<'a, I: Iterator<Item=(&'a SensorDesc, Option<(&'a SensorLimit, &'a SensorThrottle)>, Celsius)>>(sensors: I) {
     let mut table = Table::new();
     table.set_format(table_format());
     table.set_titles(row!["Sensor", "Target", "Temperature", "Range", "Limit Range", "Default", "Limit"]);
     for (sensor, limit, temp) in sensors {
         let (limit_range, limit_default, limit) = if let Some((desc, limit)) = limit {
-            (desc.range.to_string(), desc.default.to_string(), limit.to_string())
+            (desc.range.to_string(), desc.default.to_string(), limit.value.to_string())
         } else {
             (n_a(), n_a(), n_a())
         };
