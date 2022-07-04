@@ -258,8 +258,14 @@ pub fn print_info(info: &GpuInfo) {
             Some(v.to_string())
         }).unwrap_or_else(|| "None".into())
     );
-    pline!("VFP Support", "{}",
-        if info.vfp_limits.is_empty() { "No" } else { "Yes" });
+    if info.vfp_limits.is_empty() {
+        pline!("VFP", "No");
+    } else {
+        for (clock, limit) in &info.vfp_limits {
+            pline!(format!("VFP ({})", clock), "{}", limit.range);
+        }
+    }
+
 
     for (_, limit) in info.power_limits.iter().enumerate() {
         pline!("Power Limit", "{} ({} default)", limit.range, limit.default);
@@ -448,10 +454,10 @@ pub fn print_sensors<'a, I: Iterator<Item=(&'a SensorDesc, Option<(&'a SensorLim
     table.print_tty(false);
 }
 
-pub fn print_vfp<I: Iterator<Item=(usize, VfPoint)>>(vfp: I, lock: Option<Microvolts>, core: Option<Microvolts>) {
+pub fn print_vfp<I: Iterator<Item=(usize, VfPoint)>>(clock: ClockDomain, vfp: I, lock: Option<Microvolts>, core: Option<Microvolts>) {
     let mut table = Table::new();
     table.set_format(table_format());
-    table.set_titles(row!["VFP", "Voltage", "Frequency", "Offset", "Default"]);
+    table.set_titles(row![format!("{}", clock), "Voltage", "Frequency", "Offset", "Default"]);
 
     for (i, point) in vfp {
         let mut flags = String::new();

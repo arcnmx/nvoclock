@@ -472,19 +472,27 @@ fn main_result() -> Result<i32, Error> {
                             }
 
                             if show_vfp {
+                                let info = requires_info(gpu, &mut info)?;
                                 let set = requires_set(gpu, &mut set)?;
-
                                 let vfp = status.vfp.as_ref().ok_or(Error::VfpUnsupported)?;
                                 let vfp_deltas = set.vfp.as_ref().ok_or(Error::VfpUnsupported)?;
-                                let lock = set.vfp_locks.iter().map(|(_, e)| e)
-                                    .filter_map(|e| e.lock_value).filter_map(|e| e.voltage()).max();
-                                human::print_vfp(vfp.graphics.iter().zip(vfp_deltas.graphics.iter())
-                                    .map(|((i0, p), (i1, d))| {
-                                        assert_eq!(i0, i1);
-                                        (*i0, VfPoint::new(p.clone(), d.clone()))
-                                    }),
-                                    lock, status.voltage
-                                );
+
+                                for (&clock, _) in &info.vfp_limits {
+                                    let (vfp, vfp_deltas) = match clock {
+                                        ClockDomain::Graphics => (&vfp.graphics, &vfp_deltas.graphics),
+                                        ClockDomain::Memory => (&vfp.memory, &vfp_deltas.memory),
+                                        clock => unimplemented!("VFP support for {:?}", clock),
+                                    };
+                                    let lock = set.vfp_locks.iter().map(|(_, e)| e)
+                                        .filter_map(|e| e.lock_value).filter_map(|e| e.voltage()).max();
+                                    human::print_vfp(clock, vfp.iter().zip(vfp_deltas.iter())
+                                        .map(|((i0, p), (i1, d))| {
+                                            assert_eq!(i0, i1);
+                                            (*i0, VfPoint::new(p.clone(), d.clone()))
+                                        }),
+                                        lock, status.voltage
+                                    );
+                                }
                             }
 
                             if show_pstates {
