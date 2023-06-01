@@ -48,7 +48,7 @@ fn export_vfp<W: Write, I: Iterator<Item=VfPoint>>(write: W, points: I, delimite
 fn main_result() -> Result<i32, Error> {
     env_logger::init();
 
-    let app = App::new("newclock")
+    let app = App::new("nvoclock")
         .version(env!("CARGO_PKG_VERSION"))
         .author("arcnmx")
         .about("NVIDIA overclocking")
