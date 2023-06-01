@@ -253,20 +253,19 @@ fn main_result() -> Result<i32, Error> {
                     .arg(Arg::with_name("fan")
                         .long("fan-override")
                         .help("Prevent fan from running full throttle (not recommended, high temperatures skew results)")
+                    ).arg(Arg::with_name("voltage")
+                        .long("voltage-override")
+                        .help("Prevent voltage boosting")
+                    ).arg(Arg::with_name("perflimit")
+                        .long("perf-limit-override")
+                        .help("Prevent setting max perf limit")
                     ).arg(Arg::with_name("step")
                         .value_name("STEP")
                         .short("S")
                         .long("step")
                         .takes_value(true)
-                        .default_value("16")
+                        .default_value("15")
                         .help("Testing step resolution (MHz)")
-                    ).arg(Arg::with_name("max")
-                        .value_name("MAX")
-                        .short("M")
-                        .long("max")
-                        .takes_value(true)
-                        .default_value("2200")
-                        .help("Testing max frequency (MHz)")
                     ).arg(Arg::with_name("start")
                         .value_name("START")
                         .short("s")
@@ -733,7 +732,6 @@ fn main_result() -> Result<i32, Error> {
                             let end = matches.value_of("end").map(usize::from_str).transpose()?;
                             let start = matches.value_of("start").map(usize::from_str).unwrap()?;
                             let step = matches.value_of("step").map(i32::from_str).unwrap()?;
-                            let max = matches.value_of("max").map(u32::from_str).unwrap()?;
 
                             let status = gpu.status()?;
                             let vfp = status.vfp.ok_or(Error::VfpUnsupported)?;
@@ -743,15 +741,15 @@ fn main_result() -> Result<i32, Error> {
 
                             let options = auto::AutoDetectOptions {
                                 fan_override: matches.is_present("fan"),
+                                voltage_override: matches.is_present("voltage"),
+                                perflimit_override: matches.is_present("perflimit"),
                                 step: KilohertzDelta(step * 1000),
                                 test: matches.value_of("test").map(|v| v.to_owned()),
                                 voltage_wait_delay: Duration::from_secs(2),
-                                max_frequency: Kilohertz(max * 1000),
                             };
 
                             let mut auto = auto::AutoDetect::new(&gpu, options)?;
                             let mut results: BTreeMap<usize, VfPoint> = Default::default();
-
                             auto.test_prepare()?;
 
                             for (i, point, delta) in (start..end).rev()
@@ -768,6 +766,8 @@ fn main_result() -> Result<i32, Error> {
                                         });
 
                                         info!("found best point: {:#?}", frequency);
+                                        println!("found best point: {:#?}", frequency);
+                                        let _ = export_vfp(fs::File::create("tempres")?, results.clone().into_iter().map(|(_, v)| v), b',');
                                     },
                                     Ok(None) => (),
                                     Err(e) => {
