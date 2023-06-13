@@ -1,6 +1,6 @@
 [package]
 name = "nvoclock"
-version = "0.0.4"
+version = "0.1.0"
 authors = ["arcnmx"]
 edition = "2021"
 
@@ -24,9 +24,9 @@ opt-level = 2
 lto = true
 
 [dependencies]
-nvapi = { package = "nvapi-hi", version = "0.2.0", features = ["serde_types"], git = "https://github.com/arcnmx/nvapi-rs", branch = "vfp" }
+nvapi = { package = "nvapi-hi", version = "0.3.1", features = ["serde_types"], path = "nvapi-rs/hi" }
 clap = { version = "2.26.2", default-features = false }
-prettytable-rs = { version = "0.8.0", default-features = false }
+prettytable-rs = { version = "0.10.0", default-features = false }
 quick-error = "2.0.0"
 log = "0.4.0"
 env_logger = "0.9.0"

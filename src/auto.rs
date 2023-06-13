@@ -1,7 +1,10 @@
+use std::process::Command;
+use std::sync::mpsc::{channel, TryRecvError};
 use std::time::Duration;
-use std::thread::sleep;
+use std::thread::{spawn,sleep};
 use std::{io, iter};
 use log::{warn, info};
+use nvapi::nvapi::PerfFlags;
 use nvapi::{
     Gpu, ClockDomain,
     CoolerPolicy, CoolerSettings,
@@ -12,10 +15,11 @@ use crate::Error;
 
 pub struct AutoDetectOptions {
     pub fan_override: bool,
+    pub voltage_override: bool,
+    pub perflimit_override: bool,
     pub step: KilohertzDelta,
     pub test: Option<String>,
     pub voltage_wait_delay: Duration,
-    pub max_frequency: Kilohertz,
 }
 
 pub struct AutoDetect<'a> {
@@ -49,12 +53,11 @@ impl<'a> AutoDetect<'a> {
                 return Ok(true)
             }
 
-            let current_frequency = self.gpu.inner().clock_frequencies(ClockFrequencyType::Current)?
-                .get(&ClockDomain::Graphics).cloned().ok_or("couldn't read GPU clock")?;
+            let current_frequency = self.current_clock()?;
 
-            if current_frequency == frequency {
-                warn!("{} @ {} probably means flat VFP line", current_frequency, current_voltage);
-                break
+            if current_frequency >= frequency && current_voltage < voltage {
+                warn!("{} is equal or higher than {} with lower voltage, passing", current_frequency, frequency);
+                return Ok(true);
             }
 
             let sec = Duration::from_secs(1);
@@ -73,9 +76,10 @@ impl<'a> AutoDetect<'a> {
         }
 
         let info = self.gpu.info()?;
-
-        self.gpu.set_power_limits(info.power_limits.iter().map(|info| info.range.max))?;
-        //self.gpu.reset_vfp()?;
+        if !self.options.perflimit_override {
+            self.gpu.set_power_limits(info.power_limits.iter().map(|info| info.range.max))?;
+        }
+            //self.gpu.reset_vfp()?;
 
         Ok(())
     }
@@ -91,12 +95,16 @@ impl<'a> AutoDetect<'a> {
     pub fn set_voltage(&mut self, voltage: Microvolts, frequency: Kilohertz) -> Result<bool, Error> {
         self.gpu.set_vfp_lock_voltage(Some(voltage))?;
         let reached_voltage = if !self.wait_for_voltage(voltage, frequency, self.options.voltage_wait_delay)? {
-            let full = Percentage(100);
-            if self.voltage_boost < full {
-                warn!("Boosting core voltage");
-                self.gpu.set_voltage_boost(full)?;
-                self.voltage_boost = full;
-                self.wait_for_voltage(voltage, frequency, self.options.voltage_wait_delay)
+            if !self.options.voltage_override {
+                let full = Percentage(100);
+                if self.voltage_boost < full {
+                    warn!("Boosting core voltage");
+                    self.gpu.set_voltage_boost(full)?;
+                    self.voltage_boost = full;
+                    self.wait_for_voltage(voltage, frequency, self.options.voltage_wait_delay)
+                } else {
+                    Ok(false)
+                }
             } else {
                 Ok(false)
             }
@@ -104,83 +112,120 @@ impl<'a> AutoDetect<'a> {
             Ok(true)
         }?;
 
-        if reached_voltage {
-            let clock = self.current_clock()?;
-            if clock != frequency {
-                warn!("Clock throttle detected, expected {} but got {}", frequency, clock);
-            }
-
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        Ok(reached_voltage)
     }
 
-    pub fn run_test_operation(&mut self, voltage: Microvolts, frequency: Kilohertz) -> Result<bool, Error> {
+    pub fn run_test_operation(&mut self, voltage: Microvolts, frequency: Kilohertz) -> Result<PerfFlags, Error> {
         if let Some(ref test) = self.options.test {
-            unimplemented!()
+            let (from_test, to_mon) = channel();
+            let test_path = self.options.test.clone().unwrap();
+            let thr = spawn(move || {
+                let result = Command::new(test_path)
+                                            .status()
+                                            .expect("executable not found")
+                                            .success();
+                let _ = from_test.send(result);
+            });
+            let mut perf_limits = self.gpu.status().unwrap().perf.limits;
+            let mut fail_count = 0;
+            let mut clock_fail_count = 0;
+            perf_limits = perf_limits & PerfFlags::NO_LOAD_LIMIT;
+            loop {
+                if fail_count > 10 {
+                    warn!("Too much query fails, considering test failed.");
+                    return Ok(PerfFlags::NO_LOAD_LIMIT);
+                }
+                sleep(Duration::from_secs(1));
+
+                let status = self.gpu.status();
+                if status.is_err() {
+                    warn!("Failed to get GPU data - {}", status.err().unwrap());
+                    fail_count += 1;
+                    continue;
+                }
+                fail_count = 0;
+                perf_limits = perf_limits | self.gpu.status().unwrap().perf.limits;
+
+                let clock = self.current_clock()?;
+                if (clock < frequency - self.options.step) {
+                    if (clock_fail_count < 10) {
+                        warn!("Clock throttle detected, expected {} but got {}", frequency, clock);
+                        clock_fail_count += 1;
+                    }
+                }
+
+                let test_res = to_mon.try_recv();
+                if test_res.is_ok() {
+                    if test_res.unwrap() {
+                        let triggered_flags = perf_limits - PerfFlags::NO_LOAD_LIMIT;
+                        if (clock_fail_count > 9) {
+                            return Ok(triggered_flags);
+                        } else {
+                            // if gpu manages to keep clocks, then let it do that
+                            return Ok(PerfFlags::empty());
+                        }
+                    } else {
+                        return Ok(PerfFlags::NO_LOAD_LIMIT);
+                    }
+                }
+            }
         } else {
-            //unimplemented!()
             loop {
                 println!("Stable? (y/n): ");
                 let mut s = String::new();
                 io::stdin().read_line(&mut s)?;
                 match &s[..1] {
-                    "y" => return Ok(true),
-                    "n" => return Ok(false),
+                    "y" => return Ok(PerfFlags::empty()),
+                    "n" => return Ok(PerfFlags::NO_LOAD_LIMIT),
                     _ => (),
                 }
             }
         }
     }
 
-    pub fn test_point(&mut self, index: usize, voltage: Microvolts, frequency: Kilohertz, delta: KilohertzDelta) -> Result<Option<(KilohertzDelta, Kilohertz)>, Error> {
+    pub fn test_point(&mut self, index: usize, voltage: Microvolts, frequency: Kilohertz, mut delta: KilohertzDelta) -> Result<Option<(KilohertzDelta, Kilohertz)>, Error> {
         let base_frequency = frequency - delta;
 
         info!("Testing point {}: current frequency {} (base {})", voltage, frequency, base_frequency);
+        println!("Testing point {}: current frequency {} (base {})", voltage, frequency, base_frequency);
 
-        if !self.set_voltage(voltage, frequency)? {
-            warn!("Skipping {}: failed to set", voltage);
-            return Ok(None)
-        }
-
-        let mut valid = Range {
-            max: if let Some(ref prev) = self.previous_clock {
-                *prev - base_frequency
-            } else {
-                self.options.max_frequency - base_frequency
-            },
-            min: delta,
-        };
-
+        let clock = self.current_clock()?;
+        // if clock - self.options.step*4 > frequency {
+        //     while base_frequency + delta < clock {
+        //         delta = delta + self.options.step;
+        //     }
+        //     delta = delta - self.options.step*4;
+        //     warn!("Boosting clock to {} to match previous point",base_frequency + delta);
+        // }
+        
         loop {
-            let delta = (valid.max - valid.min) * 3 / 4;
-            let delta = delta / self.options.step.0 * self.options.step.0;
-            let delta = valid.min + delta;
-            if delta == valid.min {
-                break
+            // re-set voltage every time to counter driver resets
+            self.gpu.reset_vfp_lock()?;
+            if !self.set_voltage(voltage, frequency)? {
+                warn!("Skipping {}: failed to set", voltage);
+                return Ok(None)
             }
-            println!("{} delta vs {} range", delta, valid);
-
-            let frequency = base_frequency + delta;
-            info!("Testing {}: {}", voltage, frequency);
+            info!("Testing {}: {}", voltage, base_frequency + delta);
             self.gpu.set_vfp(iter::once((index, delta)), iter::empty())?;
-            let result = self.run_test_operation(voltage, frequency)?;
-
-            if result {
-                valid.min = delta;
+            // find a way to determine if there is a lower voltage point with same freq and it's failing instead
+            info!("Current {}: {}", self.gpu.inner().core_voltage()?, self.current_clock()?);
+            let result = self.run_test_operation(voltage, self.current_clock()?)?;
+            // warn!("{}",result);
+            if result == PerfFlags::empty() {
+                info!("{} passed test", base_frequency + delta);
+                delta = delta + self.options.step;
             } else {
-                valid.max = delta - self.options.step;
-            }
-
-            println!("range now  {:?}", valid);
-            if valid.max <= valid.min {
-                break
+                if result == PerfFlags::NO_LOAD_LIMIT {
+                    warn!("{} failed, stepping back 3 times", base_frequency + delta);
+                    delta = delta - self.options.step * 3;
+                } else {
+                    warn!("Performance was limited by {}. Considering this as a limit.", result);
+                    delta = delta - self.options.step;
+                }
+                if delta < KilohertzDelta(0) { delta = KilohertzDelta(0); }
+                self.gpu.set_vfp(iter::once((index, delta)), iter::empty())?;
+                return Ok(Some((delta, base_frequency + delta)));
             }
         }
-
-        let frequency = base_frequency + valid.min;
-        self.previous_clock = Some(frequency);
-        Ok(Some((valid.min, frequency)))
     }
 }

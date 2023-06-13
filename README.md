@@ -25,7 +25,6 @@ of a modern overclocking tool:
 - GPU Boost 3.0 frequency curve controls (VFP)
   - Import/export to CSV file
   - Voltage lock (single point testing)
-  - Don't try the "auto" subcommand
 - Pascal voltage boost
 
 ## Usage
@@ -47,6 +46,34 @@ of a modern overclocking tool:
   want to use `nvoclock info 2> nvolog.txt` to save to a file for later
   interpretation.
 
+## Auto VF curve
+Now most of the overclocking process can be offloaded to `nvoclock`. It will take care of running tests and adjusting GPU frequencies.  
+Available with `nvoclock set vfp auto`:
+```
+-s - step to start at. For laptops - around 25-30.
+-e - step to end at. Laptops again, around 70
+-t - test binary to run. Must return 0 if test passed, anything otherwise.
+```
+### How-to
+0. Laptop users - find a way to keep GPU active. If GPU goes idle, then status query fails.
+1. Build a test binary that will return status code 0 if test went fine.
+2. Determine GPU border points - use `nvoclock status -a` and look for starred point.  
+2.1. Start - when the GPU is idling.  
+2.2. End - at full load + a few points more. There's no harm in selecting higher end point.
+3. Run `nvoclock set vfp auto`. The program will scan your VF curve from top to bottom and output results.  
+3.1. Your PC may (and will) crash a few times during the overclocking. That's normal, that means that overclocking settings went too far. All properly tested points will result in a `tempres` file with a part of expected output. Save partial results and append them to final ones afterwards.
+
+### How the overclocking works?
+Techincally, this isn't overclock (not fully). This is undervolting. It makes your GPU run same frequencies on lower voltages, resulting in lower temps and more performance. As long as we don't increase voltage, in the worst case system will just hang and reboot.  
+`nvoclock` takes these steps to find optimal clocks:
+1. Read current VF curve and select last point
+2. Run a test operation and background monitoring
+3. Check that GPU keeps same clocks during the test process
+4. If clocks aren't stable - return limiting reason, set the point as a limit and go to the next one
+5. If test failed - step three steps back, set the point as limit and go to the next one
+6. Otherwise, up frequencies one step and repeat from step 2  
+...until the end of the VF curve.
+> We are going from top to bottom because of monotonicity rule - otherwise previous points affect next ones
 ## Future Items
 
 Some things can be improved, and since most testing was done with a single
