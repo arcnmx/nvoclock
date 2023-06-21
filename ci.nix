@@ -1,29 +1,43 @@
 { config, pkgs, lib, ... }: with pkgs; with lib; let
   nvoclock = import ./. { inherit pkgs; };
+  inherit (nvoclock) checks packages;
   artifactRoot = ".ci/artifacts";
   artifacts = "${artifactRoot}/bin/nvoclock*";
+  nvoclock-checked = (packages.nvoclock.override {
+    buildType = "debug";
+  }).overrideAttrs (_: {
+    doCheck = true;
+  });
 in {
   config = {
     name = "nvoclock";
-    ci.gh-actions.enable = true;
+    ci = {
+      version = "v0.6";
+      gh-actions.enable = true;
+    };
     cache.cachix.arc.enable = true;
     channels = {
       nixpkgs = {
         # see https://github.com/arcnmx/nixexprs-rust/issues/10
         args.config.checkMetaRecursively = false;
+        version = "23.05";
       };
-      rust = "master";
     };
     tasks = {
-      build.inputs = singleton (nvoclock.nvoclock.overrideAttrs (old: {
-        meta = old.meta // {
-          # workaround for ci bug
-          platforms = platforms.unix ++ old.meta.platforms or [];
-        };
-      }));
+      build.inputs = singleton nvoclock-checked;
+      build-windows.inputs = singleton packages.nvoclock-w64;
+      build-static.inputs = singleton packages.nvoclock-static;
+    };
+    artifactPackages = {
+      musl64 = packages.nvoclock-static;
+      win64 = packages.nvoclock-w64;
     };
 
-    artifactPackage = nvoclock.nvoclock;
+    artifactPackage = runCommand "nvoclock-artifacts" { } (''
+      mkdir -p $out/bin
+    '' + concatStringsSep "\n" (mapAttrsToList (key: nvoclock: ''
+        ln -s ${nvoclock}/bin/nvoclock${nvoclock.stdenv.hostPlatform.extensions.executable} $out/bin/nvoclock-${key}${nvoclock.stdenv.hostPlatform.extensions.executable}
+    '') config.artifactPackages));
 
     gh-actions = {
       jobs = {
@@ -49,7 +63,7 @@ in {
             artifact-upload = {
               order = 1110;
               name = "artifact upload";
-              uses.path = "actions/upload-artifact@v2";
+              uses.path = "actions/upload-artifact@v3";
               "with" = {
                 name = "nvoclock";
                 path = artifacts;
@@ -67,9 +81,12 @@ in {
       };
     };
   };
-  options = {
+  options = with types; {
     artifactPackage = mkOption {
-      type = types.package;
+      type = package;
+    };
+    artifactPackages = mkOption {
+      type = attrsOf package;
     };
   };
 }

@@ -228,31 +228,30 @@ checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 [[package]]
 name = "nvapi"
 version = "0.2.0"
-source = "git+https://github.com/arcnmx/nvapi-rs?branch=vfp#6d7266086f0039215f2cc9bcc56726c68ef04e8b"
+source = "git+https://github.com/arcnmx/nvapi-rs?branch=v0.2.x#5e57d5a2741dc5cca7061aeecf552671b7ab1033"
 dependencies = [
  "log",
  "nvapi-sys",
  "serde",
- "serde_derive",
 ]
 
 [[package]]
 name = "nvapi-hi"
 version = "0.2.0"
-source = "git+https://github.com/arcnmx/nvapi-rs?branch=vfp#6d7266086f0039215f2cc9bcc56726c68ef04e8b"
+source = "git+https://github.com/arcnmx/nvapi-rs?branch=v0.2.x#5e57d5a2741dc5cca7061aeecf552671b7ab1033"
 dependencies = [
  "nvapi",
  "once_cell",
  "serde",
- "serde_derive",
 ]
 
 [[package]]
 name = "nvapi-sys"
 version = "0.2.0"
-source = "git+https://github.com/arcnmx/nvapi-rs?branch=vfp#6d7266086f0039215f2cc9bcc56726c68ef04e8b"
+source = "git+https://github.com/arcnmx/nvapi-rs?branch=v0.2.x#5e57d5a2741dc5cca7061aeecf552671b7ab1033"
 dependencies = [
  "bitflags",
+ "libc",
  "serde",
  "winapi",
  "zerocopy",

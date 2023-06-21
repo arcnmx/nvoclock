@@ -1,27 +1,26 @@
-{ rustPlatform
-, windows
-, nix-gitignore
+let
+  self = import ./. { pkgs = null; system = null; };
+in {
+  rustPlatform
 , lib
-, ...
-}: with lib; let
-  cargoToml = importTOML ./Cargo.toml;
-in rustPlatform.buildRustPackage {
-  pname = "nvoclock";
-  version = cargoToml.package.version;
+, buildType ? "release"
+, cargoLock ? crate.cargoLock
+, source ? crate.src
+, crate ? self.lib.crate
+}: with lib; rustPlatform.buildRustPackage {
+  pname = crate.name;
+  inherit (crate) version;
 
-  src = nix-gitignore.gitignoreSourcePure [ ./.gitignore ''
-    /.github
-    /.git
-    *.nix
-  '' ] ./.;
-
-  buildInputs = [
-    windows.pthreads
-  ];
-
-  cargoSha256 = "sha256-p1LWobx5NA7WN9FDB0jVlRmyJHLH4Y92foSCuvAMTaU=";
+  src = source;
+  inherit cargoLock buildType;
   doCheck = false;
+
   meta = {
-    platforms = platforms.windows;
+    description = "NVIDIA overclocking CLI";
+    homepage = "https://github.com/arcnmx/nvoclock";
+    license = licenses.mit;
+    maintainers = [ maintainers.arcnmx ];
+    platforms = platforms.linux ++ platforms.windows;
+    mainProgram = "nvoclock";
   };
 }

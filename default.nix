@@ -1,24 +1,16 @@
-{ pkgs ? import <nixpkgs> { } }: let
-  rustPath = let
-    local = builtins.tryEval <rust>;
-    remote = builtins.fetchTarball {
-      url = "https://github.com/arcnmx/nixexprs-rust/archive/master.tar.gz";
-    };
-  in if local.success then local.value else remote;
-  inherit (pkgs.pkgsCross) mingwW64;
-  rustW64 = import rustPath { inherit (mingwW64) pkgs; };
-  rust = import rustPath { inherit pkgs; };
-  nvoclock = mingwW64.callPackage ./derivation.nix {
-    inherit (rustW64.stable) rustPlatform;
+let
+  lockData = builtins.fromJSON (builtins.readFile ./flake.lock);
+  sourceInfo = lockData.nodes.std.locked;
+  src = fetchTarball {
+    url = "https://github.com/${sourceInfo.owner}/${sourceInfo.repo}/archive/${sourceInfo.rev}.tar.gz";
+    sha256 = sourceInfo.narHash;
   };
-  shell = rustW64.stable.mkShell {
-    buildInputs = [
-      mingwW64.windows.pthreads
-    ];
-    rustTools = [
-      "rust-analyzer" "rust-src"
-    ];
+in (import src).Flake.Bootstrap {
+  path = ./.;
+  inherit lockData;
+  loadWith.defaultPackage = "nvoclock";
+  fn = { outputs, system ? null, ... }: outputs // {
+    windows = outputs.packages.nvoclock-w64;
+    static = outputs.packages.nvoclock-static;
   };
-in nvoclock // {
-  inherit nvoclock shell;
 }
