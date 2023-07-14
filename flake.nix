@@ -26,7 +26,13 @@
           ++ nativeBuildInputs ++ [
             (writeShellScriptBin "generate" ''nix run .#generate "$@"'')
           ];
-        RUST_LOG = "nvoclock=trace,nvapi*=trace";
+        RUST_LOG = "nvoclock=trace,nvapi=debug,nvapi-hi=debug";
+
+        shellHook = nixlib.optionalString hostPlatform.isLinux ''
+          if [[ -e /run/opengl-driver/lib ]]; then
+            export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/run/opengl-driver/lib"
+          fi
+        '';
       };
       stable = { rust'stable, outputs'devShells'plain }: outputs'devShells'plain.override {
         inherit (rust'stable) mkShell;

@@ -93,11 +93,13 @@ pub fn print_status(status: &GpuStatus) {
             Some(format!("{} ({})", power, ch))
         }).unwrap_or_else(n_a)
     );
-    pline!("Memory Usage", "{:.2} / {:.2} ({} evictions totalling {:.2})",
-        status.memory.dedicated_available - status.memory.dedicated_available_current,
-        status.memory.dedicated_available,
-        status.memory.dedicated_evictions, status.memory.dedicated_evictions_size,
-    );
+    if let Some(memory) = &status.memory {
+        pline!("Memory Usage", "{:.2} / {:.2} ({} evictions totalling {:.2})",
+            memory.dedicated_available - memory.dedicated_available_current,
+            memory.dedicated_available,
+            memory.dedicated_evictions, memory.dedicated_evictions_size,
+        );
+    }
     if status.ecc.enabled {
         pline!("ECC Errors", "{} 1-bit, {} 2-bit",
             status.ecc.errors.current.single_bit_errors,
@@ -232,15 +234,22 @@ pub fn print_info(info: &GpuInfo) {
     pline!("Vendor", "{}", info.vendor().unwrap_or_default());
     pline!("GPU Shaders", "{} ({}:{} pipes)",
         info.core_count, info.shader_pipe_count, info.shader_sub_pipe_count);
-    pline!("Video Memory", "{:.2} {}-bit",
-        info.memory.dedicated, info.ram_bus_width);
+    if let Some(memory) = &info.memory {
+        pline!("Video Memory", "{:.2} {}-bit",
+            memory.dedicated, info.ram_bus_width);
+    } else {
+        pline!("Video Memory", "{} {}-bit",
+            n_a(), info.ram_bus_width);
+    }
     pline!("Memory Type", "{} ({})",
         info.ram_type, info.ram_maker);
     pline!("Memory Banks", "{} ({} partitions)",
         info.ram_bank_count, info.ram_partition_count);
-    pline!("Memory Avail", "{:.2}", info.memory.dedicated_available);
-    pline!("Shared Memory", "{:.2} ({:.2} system)",
-        info.memory.shared, info.memory.system);
+    if let Some(memory) = &info.memory {
+        pline!("Memory Avail", "{:.2}", memory.dedicated_available);
+        pline!("Shared Memory", "{:.2} ({:.2} system)",
+            memory.shared, memory.system);
+    }
     pline!("ECC", "{} ({})",
         if info.ecc.info.enabled { "Yes" } else if info.ecc.info.supported { "Disabled" } else { "N/A" },
         info.ecc.info.configuration);
@@ -250,7 +259,9 @@ pub fn print_info(info: &GpuInfo) {
         pline!("PCI IDs", "{}", ids);
     }
     pline!("BIOS Version", "{}", info.bios_version);
-    pline!("Driver Model", "{}", info.driver_model);
+    if let Some(driver_model) = &info.driver_model {
+        pline!("Driver Model", "{}", driver_model);
+    }
     pline!("Limit Support", "{}",
         info.perf.limits.fold(None, |state, v| if let Some(state) = state {
             Some(format!("{}, {}", state, v))

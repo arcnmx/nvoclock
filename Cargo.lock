@@ -228,7 +228,7 @@ checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 [[package]]
 name = "nvapi"
 version = "0.2.0"
-source = "git+https://github.com/arcnmx/nvapi-rs?branch=v0.2.x#5e57d5a2741dc5cca7061aeecf552671b7ab1033"
+source = "git+https://github.com/arcnmx/nvapi-rs?branch=v0.2.x#42c07b171daa80e23720dc6838556cd16b1efe9c"
 dependencies = [
  "log",
  "nvapi-sys",
@@ -238,7 +238,7 @@ dependencies = [
 [[package]]
 name = "nvapi-hi"
 version = "0.2.0"
-source = "git+https://github.com/arcnmx/nvapi-rs?branch=v0.2.x#5e57d5a2741dc5cca7061aeecf552671b7ab1033"
+source = "git+https://github.com/arcnmx/nvapi-rs?branch=v0.2.x#42c07b171daa80e23720dc6838556cd16b1efe9c"
 dependencies = [
  "nvapi",
  "once_cell",
@@ -248,7 +248,7 @@ dependencies = [
 [[package]]
 name = "nvapi-sys"
 version = "0.2.0"
-source = "git+https://github.com/arcnmx/nvapi-rs?branch=v0.2.x#5e57d5a2741dc5cca7061aeecf552671b7ab1033"
+source = "git+https://github.com/arcnmx/nvapi-rs?branch=v0.2.x#42c07b171daa80e23720dc6838556cd16b1efe9c"
 dependencies = [
  "bitflags",
  "libc",

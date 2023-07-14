@@ -17,7 +17,7 @@ use nvapi::{
     ClockDomain, PState, CoolerPolicy, CoolerSettings, FanCoolerId,
     allowable_result
 };
-use log::{info, warn};
+use log::{Level, debug, info, warn, log_enabled};
 use clap::{Arg, App, SubCommand, AppSettings};
 use self::conv::ConvertEnum;
 use self::error::Error;
@@ -317,10 +317,24 @@ fn main_result() -> Result<i32, Error> {
 
     nvapi::initialize()?;
 
-    let driver_version = nvapi::driver_version()?;
-    info!("Driver version: {} ({})", driver_version.1, driver_version.0);
-    info!("Interface version: {}", nvapi::interface_version()?);
-    info!("System Chipset: {:?}", nvapi::chipset_info()?);
+    if log_enabled!(Level::Info) {
+        let driver_version = nvapi::driver_version().and_then(|ver|
+            nvapi::interface_version().map(|int| (ver, int))
+        );
+        match driver_version {
+            Ok(((version, version_name), interface)) => {
+                info!("Driver version: {} ({})", version_name, version);
+                info!("Interface version: {}", interface);
+            },
+            Err(e) => warn!("Failed to get driver version: {}", e),
+        }
+    }
+    if log_enabled!(Level::Debug) {
+        match nvapi::chipset_info() {
+            Ok(info) => debug!("System Chipset: {:?}", info),
+            Err(e) => warn!("Failed to get chipset info: {}", e),
+        }
+    }
 
     let gpu = matches.values_of("gpu");
 
