@@ -16,7 +16,6 @@ use nvapi::{
     Gpu, GpuInfo, GpuSettings,
     Percentage, Celsius, Kilohertz, KilohertzDelta, Microvolts, VfPoint,
     ClockDomain, PState, CoolerPolicy, CoolerSettings, FanCoolerId,
-    allowable_result
 };
 use log::{Level, debug, info, warn, log_enabled};
 use clap::{Arg, App, SubCommand, AppSettings};
@@ -610,8 +609,8 @@ fn main_result() -> Result<i32, Error> {
             };
 
             fn warn_result<E: Into<nvapi::Error>>(r: Result<(), E>, setting: ResetSettings, explicit: bool) -> Result<(), Error> {
-                match (allowable_result(r).map_err(|e| (setting, e.into()))?, explicit) {
-                    (Err(e), true) => Err((setting, e).into()),
+                match (nvapi::Error::allowable_result(r).map_err(|e| (setting, e.into()))?, explicit) {
+                    (None, true) => Err((setting, nvapi::Error::from(nvapi::sys::ArgumentRangeError)).into()),
                     _ => Ok(()),
                 }
             }
@@ -851,7 +850,7 @@ fn main_result() -> Result<i32, Error> {
                 ("list", Some(matches)) => {
                     let devices = GSyncDevice::enumerate()?
                         .into_iter()
-                        .map(|gsync| allowable_result(gsync.capabilities()).map(|caps| GSyncDescriptor {
+                        .map(|gsync| nvapi::Error::allowable_result(gsync.capabilities()).map(|caps| GSyncDescriptor {
                             board_id: caps.map(|caps| caps.board_id).unwrap_or_default(),
                             handle: gsync.handle().as_ptr() as usize,
                         })).collect::<Result<Vec<_>, _>>()?;
