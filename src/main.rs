@@ -775,8 +775,8 @@ fn main_result() -> Result<i32, Error> {
                                         results.insert(i, VfPoint {
                                             voltage: point.voltage,
                                             default_frequency: point.default_frequency,
-                                            frequency: frequency,
-                                            delta: delta,
+                                            frequency,
+                                            delta,
                                         });
 
                                         info!("found best point: {:#?}", frequency);
