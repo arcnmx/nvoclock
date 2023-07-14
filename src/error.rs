@@ -3,6 +3,11 @@ use std::num::{ParseIntError, ParseFloatError};
 use crate::types::ResetSettings;
 use quick_error::quick_error;
 
+#[cfg(feature = "serde")]
+type JsonError = serde_json::Error;
+#[cfg(not(feature = "serde"))]
+type JsonError = std::convert::Infallible;
+
 quick_error! {
     #[derive(Debug)]
     pub enum Error {
@@ -22,7 +27,7 @@ quick_error! {
             source(err)
             display("IO error: {}", err)
         }
-        Json(err: serde_json::Error) {
+        Json(err: JsonError) {
             from()
             source(err)
             display("JSON error: {}", err)

@@ -372,9 +372,12 @@ fn main_result() -> Result<i32, Error> {
                 OutputFormat::Human => for (i, gpu) in gpus.into_iter().enumerate() {
                     println!("GPU #{}: {}", i, gpu.name);
                 },
+                #[cfg(feature = "serde")]
                 OutputFormat::Json => {
                     serde_json::to_writer_pretty(io::stdout(), &gpus)?
                 },
+                #[cfg(not(feature = "serde"))]
+                OutputFormat::Json => unimplemented!(),
             }
         },
         ("info", Some(matches)) => {
@@ -390,12 +393,15 @@ fn main_result() -> Result<i32, Error> {
                         println!();
                     }
                 },
+                #[cfg(feature = "serde")]
                 OutputFormat::Json => {
                     serde_json::to_writer_pretty(
                         io::stdout(),
                         &gpus.into_iter().map(|gpu| gpu.info()).collect::<Result<Vec<_>, _>>()?
                     )?;
                 },
+                #[cfg(not(feature = "serde"))]
+                OutputFormat::Json => unimplemented!(),
             }
         },
         ("status", Some(matches)) => {
@@ -512,6 +518,7 @@ fn main_result() -> Result<i32, Error> {
                             println!();
                         }
                     },
+                    #[cfg(feature = "serde")]
                     OutputFormat::Json => {
                         let status = &gpus.iter().map(|&gpu| gpu.status()).collect::<Result<Vec<_>, _>>()?;
                         if monitor.is_some() {
@@ -522,6 +529,8 @@ fn main_result() -> Result<i32, Error> {
                             serde_json::to_writer_pretty(io::stdout(), status)?;
                         }
                     },
+                    #[cfg(not(feature = "serde"))]
+                    OutputFormat::Json => unimplemented!(),
                 }
 
                 if let Some(monitor) = monitor.clone() {
@@ -542,12 +551,15 @@ fn main_result() -> Result<i32, Error> {
                         human::print_settings(&set);
                     }
                 },
+                #[cfg(feature = "serde")]
                 OutputFormat::Json => {
                     serde_json::to_writer_pretty(
                         io::stdout(),
                         &gpus.into_iter().map(|gpu| gpu.settings()).collect::<Result<Vec<_>, _>>()?
                     )?;
                 },
+                #[cfg(not(feature = "serde"))]
+                OutputFormat::Json => unimplemented!(),
             }
         },
         ("reset", Some(matches)) => {

@@ -1,7 +1,9 @@
 use clap::ArgMatches;
+#[cfg(feature = "serde")]
 use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct GpuDescriptor {
     pub name: String,
 }
