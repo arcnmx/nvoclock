@@ -308,6 +308,7 @@ pub fn print_info(info: &GpuInfo) {
                     CoolerControl::Variable => "",
                     CoolerControl::Toggle => "(On/Off control)",
                     CoolerControl::None => " (Read-only)",
+                    _ => "",
                 }.into(),
             },
         );
@@ -415,13 +416,13 @@ pub fn print_coolers<'a, I: Iterator<Item=(FanCoolerId, &'a CoolerInfo, &'a Cool
     table.set_titles(row!["Cooler", "Type", "Controller", "Target", "Level", "Speed", "Range", "Setting", "Mode", "Default"]);
     for (id, cooler, status, control) in coolers {
         let (level, range) = match cooler.control {
-            CoolerControl::None => (n_a(), n_a()),
             CoolerControl::Toggle => (if status.active {
                 "On".into()
             } else {
                 "Off".into()
             }, "On / Off".into()),
             CoolerControl::Variable => (status.current_level.to_string(), status.current_level_range.to_string()),
+            _ => (n_a(), n_a()),
         };
         let tach = match status.current_tach {
             Some(tach) => tach.to_string(),
