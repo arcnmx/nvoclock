@@ -1,13 +1,14 @@
 use std::iter;
 use nvapi::{
     Gpu, GpuInfo, GpuStatus, GpuSettings,
-    Celsius, KilohertzDelta, VfPoint,
+    Celsius, KilohertzDelta, //VfPoint,
     ClockDomain, ClockFrequencies, VoltageDomain, Microvolts, PState,
     FanCoolerId, CoolerInfo, CoolerStatus, CoolerSettings, CoolerControl,
     SensorDesc, SensorLimit, SensorThrottle, PStateLimit,
     Utilizations, UtilizationDomain,
     nvapi::{GSyncDevice, GSyncCapabilities, GSyncStatus},
 };
+use nvapi::nvapi::{Tagged, TaggedIterator, NvValueData};
 use prettytable::{format, row, cell, Table};
 
 const HEADER_LEN: usize = 20;
@@ -48,11 +49,15 @@ pub fn print_settings(set: &GpuSettings) {
     for limit in &set.sensor_limits {
         pline!("Thermal Limit", "{}{}{}",
             limit.value,
+                {
+            #[cfg(never)]
             match &limit.curve {
                 Some(pff) => format!(": {}", pff),
-                None => n_a(),
+                None => "",
+            }
+                ""
             },
-            if limit.remove_tdp_limit {
+            if limit.tdp_unlimited {
                 " (TDP Limit Removed)"
             } else {
                 ""
@@ -61,18 +66,22 @@ pub fn print_settings(set: &GpuSettings) {
     for limit in &set.power_limits {
         pline!("Power Limit", "{}", limit);
     }
+    #[cfg(never)]
     for (id, cooler) in &set.coolers {
         pline!(format!("Cooler {}", id), "{}", match cooler.level {
             Some(level) => level.to_string(),
             None => cooler.policy.to_string(),
         });
     }
+    #[cfg(never)]
     for (pstate, clock, delta) in set.pstate_deltas.iter().flat_map(|(ps, d)| d.iter().map(move |(clock, d)| (ps, clock, d))) {
         pline!(format!("{} @ {} Offset", clock, pstate), "{}", delta);
     }
+    #[cfg(never)]
     for ov in &set.overvolt {
         pline!("Overvolt", "{}", ov);
     }
+    #[cfg(never)]
     for (id, lock) in &set.vfp_locks {
         if let Some(value) = lock.lock_value {
             pline!(format!("VFP Lock {}", id), "{}", value);
@@ -87,28 +96,37 @@ pub fn print_settings(set: &GpuSettings) {
 
 pub fn print_status(status: &GpuStatus) {
     pline!("Power State", "{}", status.pstate);
+    #[cfg(never)] {
     pline!("Power Usage", "{}", 
         status.power.iter().fold(None, |state, (ch, power)| if let Some(state) = state {
             Some(format!("{}, {} ({})", state, power, ch))
         } else {
             Some(format!("{} ({})", power, ch))
         }).unwrap_or_else(n_a)
-    );
+    ); }
     if let Some(memory) = &status.memory {
-        pline!("Memory Usage", "{:.2} / {:.2} ({} evictions totalling {:.2})",
-            memory.dedicated_available - memory.dedicated_available_current,
-            memory.dedicated_available,
-            memory.dedicated_evictions, memory.dedicated_evictions_size,
+        pline!("Memory Usage", "{} / {:.2}{}",
+            match memory.dedicated_available_current() {
+                Some(current) => format!("{:.2}", memory.dedicated_available() - current),
+                None => n_a(),
+            },
+            memory.dedicated_available(),
+            match memory {
+                nvapi::MemoryInfo::V3(memory) => format!(" ({} evictions totalling {:.2})",
+                    memory.dedicated_evictions(), memory.dedicated_evictions_size(),
+                ),
+                _ => "".into(),
+            },
         );
     }
     if status.ecc.enabled {
         pline!("ECC Errors", "{} 1-bit, {} 2-bit",
-            status.ecc.errors.current.single_bit_errors,
-            status.ecc.errors.current.double_bit_errors);
-        if status.ecc.errors.current != status.ecc.errors.aggregate {
+            status.ecc.errors.current().single_bit(),
+            status.ecc.errors.current().double_bit());
+        if status.ecc.errors.current() != status.ecc.errors.aggregate() {
             pline!("ECC Errors", "{} 1-bit, {} 2-bit (Aggregate)",
-                status.ecc.errors.aggregate.single_bit_errors,
-                status.ecc.errors.aggregate.double_bit_errors);
+                status.ecc.errors.aggregate().single_bit(),
+                status.ecc.errors.aggregate().double_bit());
         }
     }
     if let Some(lanes) = status.pcie_lanes {
@@ -116,12 +134,13 @@ pub fn print_status(status: &GpuStatus) {
     }
     pline!("Core Voltage", "{}", status.voltage.map(|v| v.to_string()).unwrap_or_else(n_a));
     pline!("Limits", "{}",
-        status.perf.limits.fold(None, |state, v| if let Some(state) = state {
+        status.perf.limits().fold(None, |state, v| if let Some(state) = state {
             Some(format!("{}, {}", state, v))
         } else {
             Some(v.to_string())
         }).unwrap_or_else(n_a)
     );
+    #[cfg(never)] {
     pline!("VFP Lock", "{}",
         if status.vfp_locks.is_empty() {
             "None".into()
@@ -130,19 +149,23 @@ pub fn print_status(status: &GpuStatus) {
                 .collect::<Vec<_>>().join(", ")
         },
     );
-
-    for (clock, freq) in &status.clocks {
-        pline!(format!("{} Clock", clock), "{}", freq);
     }
 
-    for (res, util) in &status.utilization {
-        pline!(format!("{} Load", res), "{}", util);
+    // TODO: &iter
+    for Tagged { tag: clock, value: freq } in status.clocks.clone() {
+        pline!(format!("{} Clock", clock), "{}", freq.frequency());
+    }
+
+    // TODO: &iter
+    for Tagged { tag: res, value: util } in status.utilization.clone() {
+        pline!(format!("{} Load", res), "{}", util.usage());
     }
 
     for &(ref sensor, ref temp) in &status.sensors {
         pline!("Sensor", "{} ({} / {})", temp, sensor.controller, sensor.target);
     }
 
+    #[cfg(never)]
     for (i, cooler) in &status.coolers {
         let variable_control = true; // TODO!!
         let level = match cooler.active {
@@ -237,7 +260,7 @@ pub fn print_info(info: &GpuInfo) {
         info.core_count, info.shader_pipe_count, info.shader_sub_pipe_count);
     if let Some(memory) = &info.memory {
         pline!("Video Memory", "{:.2} {}-bit",
-            memory.dedicated, info.ram_bus_width);
+            memory.dedicated(), info.ram_bus_width);
     } else {
         pline!("Video Memory", "{} {}-bit",
             n_a(), info.ram_bus_width);
@@ -247,13 +270,13 @@ pub fn print_info(info: &GpuInfo) {
     pline!("Memory Banks", "{} ({} partitions)",
         info.ram_bank_count, info.ram_partition_count);
     if let Some(memory) = &info.memory {
-        pline!("Memory Avail", "{:.2}", memory.dedicated_available);
+        pline!("Memory Avail", "{:.2}", memory.dedicated_available());
         pline!("Shared Memory", "{:.2} ({:.2} system)",
-            memory.shared, memory.system);
+            memory.shared(), memory.system());
     }
     pline!("ECC", "{} ({})",
-        if info.ecc.info.enabled { "Yes" } else if info.ecc.info.supported { "Disabled" } else { "N/A" },
-        info.ecc.info.configuration);
+        if info.ecc.info.enabled() { "Yes" } else if info.ecc.info.supported() { "Disabled" } else { "N/A" },
+        info.ecc.info.configuration());
     pline!("Foundry", "{}", info.foundry);
     pline!("Bus", "{}", info.bus);
     if let Some(ids) = info.bus.bus.pci_ids() {
@@ -264,12 +287,13 @@ pub fn print_info(info: &GpuInfo) {
         pline!("Driver Model", "{}", driver_model);
     }
     pline!("Limit Support", "{}",
-        info.perf.limits.fold(None, |state, v| if let Some(state) = state {
+        info.perf.limits().fold(None, |state, v| if let Some(state) = state {
             Some(format!("{}, {}", state, v))
         } else {
             Some(v.to_string())
         }).unwrap_or_else(|| "None".into())
     );
+    #[cfg(never)]
     if info.vfp_limits.is_empty() {
         pline!("VFP", "No");
     } else {
@@ -283,10 +307,12 @@ pub fn print_info(info: &GpuInfo) {
         pline!("Power Limit", "{} ({} default)", limit.range, limit.default);
     }
 
+    let base_clocks = info.base_clocks.clone().into_frequencies().into_map();
+    let boost_clocks = info.boost_clocks.clone().into_frequencies().into_map();
     for clock in ClockDomain::values() {
-        if let (Some(base), boost) = (info.base_clocks.get(&clock), info.boost_clocks.get(&clock)) {
+        if let (Some(Tagged { value: base, .. }), boost) = (base_clocks.get(&clock.value()), boost_clocks.get(&clock.value())) {
             pline!(format!("{} Clock", clock), "{} ({} boost)",
-                base, boost.map(ToString::to_string).unwrap_or_else(n_a)
+                base.frequency(), boost.map(|b| b.frequency().to_string()).unwrap_or_else(n_a)
             );
         }
     }
@@ -299,24 +325,35 @@ pub fn print_info(info: &GpuInfo) {
             sensor.controller, sensor.target, sensor.range);
         if let Some(limit) = limit {
             pline!("Thermal Limit", "{} ({} default)", limit.range, limit.default);
+            #[cfg(never)]
             if let Some(pff) = &limit.throttle_curve {
                 pline!("Thermal Throttle", "{}", pff);
             }
         }
     }
 
-    for (id, cooler) in info.coolers.iter() {
-        let range =  match (cooler.default_level_range, cooler.tach_range) {
+    // TODO: &iter
+    for cooler in info.coolers.clone() {
+        let id = cooler.id();
+        #[cfg(never)]
+        let default_range = cooler.default_level_range();
+        let default_range = None::<u32>;
+        let range =  match (default_range, cooler.tach_range()) {
+            #[cfg(never)]
             (Some(level), Some(tach)) => Some(format!("{} / {}", level, tach)),
             (None, Some(tach)) => Some(tach.to_string()),
+            #[cfg(never)]
             (Some(level), None) => Some(level.to_string()),
             (None, None) => None,
+            #[cfg(not(never))]
+            _ => None,
         };
+        #[cfg(never)]
         pline!(format!("Cooler {}", id), "{} / {} / {}{}",
-            cooler.kind, cooler.controller, cooler.target,
+            cooler.kind(), cooler.controller(), cooler.target(),
             match range {
                 Some(range) => format!(" ({} range)", range),
-                None => match cooler.control {
+                None => match cooler.control() {
                     CoolerControl::Variable => "",
                     CoolerControl::Toggle => "(On/Off control)",
                     CoolerControl::None => " (Read-only)",
@@ -324,8 +361,22 @@ pub fn print_info(info: &GpuInfo) {
                 }.into(),
             },
         );
-        if cooler.default_policy != nvapi::CoolerPolicy::None {
-            pline!(format!("Cooler {} Default", id), "{} Mode", cooler.default_policy);
+        pline!(format!("Cooler {}", id), "{}",
+            match range {
+                Some(range) => format!(" ({} range)", range),
+                #[cfg(never)]
+                None => match cooler.control() {
+                    CoolerControl::Variable => "",
+                    CoolerControl::Toggle => "(On/Off control)",
+                    CoolerControl::None => " (Read-only)",
+                }.into(),
+                #[cfg(not(never))]
+                None => "".into(),
+            },
+        );
+        #[cfg(never)]
+        if cooler.default_policy() != nvapi::CoolerPolicy::None {
+            pline!(format!("Cooler {} Default", id), "{} Mode", cooler.default_policy());
         }
     }
 }
@@ -402,19 +453,25 @@ pub fn print_clocks(base: &ClockFrequencies, boost: &ClockFrequencies, current: 
     let mut table = Table::new();
     table.set_format(table_format());
     table.set_titles(row!["Clock", "Usage", "Current", "Base", "Boost"]);
+    // TODO: something better...
+    let base = base.clone().into_frequencies().into_map();
+    let boost = boost.clone().into_frequencies().into_map();
+    let current = current.clone().into_frequencies().into_map();
+    let util = util.clone().into_utilizations().into_map();
     for clock in ClockDomain::values() {
         match (
-            base.get(&clock), boost.get(&clock), current.get(&clock),
-            UtilizationDomain::from_clock(clock).and_then(|u| util.get(&u))
+            // TODO: base.get(&clock), boost.get(&clock), current.get(&clock),
+            base.get(&clock.value()), boost.get(&clock.value()), current.get(&clock.value()),
+            UtilizationDomain::from_clock(clock).and_then(|u| util.get(&u.value()))
         ) {
             (None, _, None, _) => (),
             (base, boost, current, usage) => {
                 table.add_row(row![
                     clock,
-                    usage.map(|v| v.to_string()).unwrap_or_else(n_a),
-                    current.map(|v| v.to_string()).unwrap_or_else(n_a),
-                    base.map(|v| v.to_string()).unwrap_or_else(n_a),
-                    boost.map(|v| v.to_string()).unwrap_or_else(n_a)
+                    usage.map(|v| v.usage().to_string()).unwrap_or_else(n_a),
+                    current.map(|v| v.frequency().to_string()).unwrap_or_else(n_a),
+                    base.map(|v| v.frequency().to_string()).unwrap_or_else(n_a),
+                    boost.map(|v| v.frequency().to_string()).unwrap_or_else(n_a)
                 ]);
             },
         }
@@ -422,6 +479,7 @@ pub fn print_clocks(base: &ClockFrequencies, boost: &ClockFrequencies, current: 
     table.print_tty(false);
 }
 
+#[cfg(never)]
 pub fn print_coolers<'a, I: Iterator<Item=(FanCoolerId, &'a CoolerInfo, &'a CoolerStatus, &'a CoolerSettings)>>(coolers: I) {
     let mut table = Table::new();
     table.set_format(table_format());
@@ -467,6 +525,7 @@ pub fn print_sensors<'a, I: Iterator<Item=(&'a SensorDesc, Option<(&'a SensorLim
     table.print_tty(false);
 }
 
+#[cfg(never)]
 pub fn print_vfp<I: Iterator<Item=(usize, VfPoint)>>(clock: ClockDomain, vfp: I, lock: Option<Microvolts>, core: Option<Microvolts>) {
     let mut table = Table::new();
     table.set_format(table_format());
@@ -478,6 +537,7 @@ pub fn print_vfp<I: Iterator<Item=(usize, VfPoint)>>(clock: ClockDomain, vfp: I,
             flags.push('*');
         }
         if Some(point.voltage) == lock {
+            // TODO: revamp how this works!
             flags.push('^');
         }
 
@@ -508,22 +568,22 @@ pub fn print_pstates<'a, I: Iterator<Item=(PState, ClockDomain, &'a PStateLimit,
 pub fn print_gsync_status(device: &GSyncDevice, gpu: &Gpu, status: &GSyncStatus) {
     pline!("G-SYNC", "{}", device.handle().as_ptr() as usize);
     pline!("GPU", "{}", gpu.id());
-    pline!("Sync", "{:?}", status.synced);
-    pline!("Stereo Sync", "{:?}", status.stereo_synced);
-    pline!("Signal", "{:?}", status.sync_signal_available);
+    pline!("Sync", "{:?}", status.synced());
+    pline!("Stereo Sync", "{:?}", status.stereo_synced());
+    pline!("Signal", "{:?}", status.sync_signal_available());
 }
 
 pub fn print_gsync_info(device: &GSyncDevice, capabilities: &GSyncCapabilities) {
     pline!("G-SYNC", "{}", device.handle().as_ptr() as usize);
-    let board_id = match capabilities.board_id {
+    let board_id = match capabilities.board_id() {
         nvapi::sys::gsync::NVAPI_GSYNC_BOARD_ID_P358 => "P358".into(),
         nvapi::sys::gsync::NVAPI_GSYNC_BOARD_ID_P2060 => "P2060".into(),
         nvapi::sys::gsync::NVAPI_GSYNC_BOARD_ID_P2061 => "P2061".into(),
         id => id.to_string(),
     };
-    pline!("Board ID", "{}", capabilities.board_id);
-    pline!("Revision", "{}.{}", capabilities.revision, capabilities.extended_revision);
-    if let Some(max_mul_div) = capabilities.max_mul_div {
+    pline!("Board ID", "{}", capabilities.board_id());
+    pline!("Revision", "{}.{}", capabilities.revision(), capabilities.extended_revision());
+    if let Some(max_mul_div) = capabilities.max_mul_div() {
         pline!("Maximum Mul/Div", "{}", max_mul_div);
     }
 }

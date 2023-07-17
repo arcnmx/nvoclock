@@ -1,3 +1,4 @@
+#[cfg(never)]
 mod auto;
 mod human;
 mod conv;
@@ -14,7 +15,7 @@ use std::{fs, iter};
 use nvapi::{
     nvapi::GSyncDevice,
     Gpu, GpuInfo, GpuSettings,
-    Percentage, Celsius, Kilohertz, KilohertzDelta, Microvolts, VfPoint,
+    Percentage, Celsius, Kilohertz, KilohertzDelta, Microvolts, // VfPoint,
     ClockDomain, PState, CoolerPolicy, CoolerSettings, FanCoolerId,
 };
 use log::{Level, debug, info, warn, log_enabled};
@@ -37,6 +38,7 @@ fn is_std(str: &str) -> bool {
     str == "-"
 }
 
+#[cfg(never)]
 fn export_vfp<W: Write, I: Iterator<Item=VfPoint>>(write: W, points: I, delimiter: u8) -> io::Result<()> {
     let mut w = csv::WriterBuilder::new().delimiter(delimiter).from_writer(write);
 
@@ -504,6 +506,7 @@ fn main_result() -> Result<i32, Error> {
                                 );
                             }
 
+                            #[cfg(never)]
                             if show_coolers {
                                 let info = requires_info(gpu, &mut info)?;
                                 let set = requires_set(gpu, &mut set)?;
@@ -513,6 +516,7 @@ fn main_result() -> Result<i32, Error> {
                                 );
                             }
 
+                            #[cfg(never)]
                             if show_vfp {
                                 let info = requires_info(gpu, &mut info)?;
                                 let set = requires_set(gpu, &mut set)?;
@@ -537,6 +541,7 @@ fn main_result() -> Result<i32, Error> {
                                 }
                             }
 
+                            #[cfg(never)]
                             if show_pstates {
                                 let info = requires_info(gpu, &mut info)?;
                                 let set = requires_set(gpu, &mut set)?;
@@ -608,11 +613,16 @@ fn main_result() -> Result<i32, Error> {
                 (ResetSettings::possible_values_typed().iter().cloned().collect::<Vec<_>>(), false)
             };
 
+            #[cfg(never)]
             fn warn_result<E: Into<nvapi::Error>>(r: Result<(), E>, setting: ResetSettings, explicit: bool) -> Result<(), Error> {
                 match (nvapi::Error::allowable_result(r).map_err(|e| (setting, e.into()))?, explicit) {
                     (None, true) => Err((setting, nvapi::Error::from(nvapi::sys::ArgumentRangeError)).into()),
                     _ => Ok(()),
                 }
+            }
+            fn warn_result<E: Into<nvapi::Error>>(r: Result<(), E>, setting: ResetSettings, explicit: bool) -> Result<(), Error> {
+                // TODO!!!
+                Ok(())
             }
 
             for gpu in gpus {
@@ -621,29 +631,35 @@ fn main_result() -> Result<i32, Error> {
                 for &setting in &settings {
                     match setting {
                         ResetSettings::VoltageBoost => warn_result(
-                            gpu.set_voltage_boost(Percentage(0)),
+                            gpu.set_voltage_boost(0.into()),
                             setting, explicit
                         )?,
+                        #[cfg(never)]
                         ResetSettings::SensorLimits => warn_result(
                             gpu.set_sensor_limits(info.sensor_limits.iter().cloned().map(nvapi::SensorThrottle::from_default)),
                             setting, explicit
                         )?,
+                        #[cfg(never)]
                         ResetSettings::PowerLimits => warn_result(
                             gpu.set_power_limits(info.power_limits.iter().map(|info| info.default)),
                             setting, explicit
                         )?,
+                        #[cfg(never)]
                         ResetSettings::CoolerLevels => warn_result(
                             gpu.reset_cooler_levels(),
                             setting, explicit
                         )?,
+                        #[cfg(never)]
                         ResetSettings::VfpDeltas => warn_result(
                             gpu.reset_vfp(), // not really necessary if we're also doing pstate reset?
                             setting, explicit
                         )?,
+                        #[cfg(never)]
                         ResetSettings::VfpLock => warn_result(
                             gpu.reset_vfp_lock(),
                             setting, explicit
                         )?,
+                        #[cfg(never)]
                         ResetSettings::PStateDeltas => {
                             let pstates = info.pstate_limits.iter().flat_map(|(&pstate, l)|
                                 l.iter()
@@ -657,6 +673,8 @@ fn main_result() -> Result<i32, Error> {
                         },
                         ResetSettings::Overvolt =>
                             warn!("TODO: ResetSettings::Overvolt"),
+                        #[cfg(not(never))]
+                        setting => warn!("TODO: {:?}", setting),
                     }
                 }
             }
@@ -667,21 +685,24 @@ fn main_result() -> Result<i32, Error> {
 
             for gpu in &gpus {
                 if let Some(vboost) = matches.value_of("vboost").map(u32::from_str).transpose()? {
-                    gpu.set_voltage_boost(Percentage(vboost))?
+                    gpu.set_voltage_boost(vboost.into())?
                 }
 
+                #[cfg(never)]
                 if let Some(plimit) = matches.values_of("plimit") {
-                    let plimit = plimit.map(u32::from_str).map(|v| v.map(|v| Percentage(v))).collect::<Result<Vec<_>, _>>()?;
+                    let plimit = plimit.map(u32::from_str).map(|v| v.map(|v| Percentage::from(v))).collect::<Result<Vec<_>, _>>()?;
                     gpu.set_power_limits(plimit.into_iter())?
                 }
 
+                #[cfg(never)]
                 if let Some(tlimit) = matches.values_of("tlimit") {
-                    let tlimit = tlimit.map(i32::from_str).map(|v| v.map(|v| Celsius(v).into())).collect::<Result<Vec<_>, _>>()?;
+                    let tlimit = tlimit.map(i32::from_str).map(|v| v.map(|v| Celsius::from(v).into())).collect::<Result<Vec<_>, _>>()?;
                     gpu.set_sensor_limits(tlimit.into_iter())?
                 }
             }
 
             match matches.subcommand() {
+                #[cfg(never)]
                 ("pstate", Some(matches)) => {
                     for gpu in &gpus {
                         let pstate = matches.value_of("pstate").map(PState::from_str).unwrap()?;
@@ -691,6 +712,7 @@ fn main_result() -> Result<i32, Error> {
                         gpu.inner().set_pstates([(pstate, clock, KilohertzDelta(delta))].iter().cloned())?
                     }
                 },
+                #[cfg(never)]
                 ("cooler", Some(matches)) => {
                     for gpu in &gpus {
                         let mode = matches.value_of("policy").map(CoolerPolicy::from_str).unwrap()?;
@@ -702,6 +724,7 @@ fn main_result() -> Result<i32, Error> {
                         })].into_iter())?
                     }
                 },
+                #[cfg(never)]
                 ("vfp", Some(matches)) => {
                     match matches.subcommand() {
                         ("export", Some(matches)) => {
@@ -768,6 +791,7 @@ fn main_result() -> Result<i32, Error> {
                                 };
 
                                 gpu.set_vfp_lock_voltage(Some(v))?;
+                                // TODO: revamp CLI for better lock interface
                             }
                         },
                         ("unlock", Some(..)) => {
@@ -775,6 +799,7 @@ fn main_result() -> Result<i32, Error> {
                                 gpu.reset_vfp_lock()?;
                             }
                         },
+                        #[cfg(never)]
                         ("auto", Some(matches)) => {
                             let gpu = single_gpu(&gpus)?;
 
@@ -851,7 +876,7 @@ fn main_result() -> Result<i32, Error> {
                     let devices = GSyncDevice::enumerate()?
                         .into_iter()
                         .map(|gsync| nvapi::Error::allowable_result(gsync.capabilities()).map(|caps| GSyncDescriptor {
-                            board_id: caps.map(|caps| caps.board_id).unwrap_or_default(),
+                            board_id: caps.map(|caps| caps.board_id()).unwrap_or_default(),
                             handle: gsync.handle().as_ptr() as usize,
                         })).collect::<Result<Vec<_>, _>>()?;
 

@@ -1,7 +1,7 @@
 {
   outputHashes = {
-    "nvapi-0.2.0" = "sha256-zkw+xTpvXiCNP7GNStG/59e+cXlO04SptcxoI/Z2Rew=";
-    "nvapi-hi-0.2.0" = "sha256-zkw+xTpvXiCNP7GNStG/59e+cXlO04SptcxoI/Z2Rew=";
-    "nvapi-sys-0.2.0" = "sha256-zkw+xTpvXiCNP7GNStG/59e+cXlO04SptcxoI/Z2Rew=";
+    "nvapi-0.2.0" = "sha256-MugYVSh9IAX7Zu9ifmvBM881hnRMMNw6mGv84zRWvfg=";
+    "nvapi-hi-0.2.0" = "sha256-MugYVSh9IAX7Zu9ifmvBM881hnRMMNw6mGv84zRWvfg=";
+    "nvapi-sys-0.2.0" = "sha256-MugYVSh9IAX7Zu9ifmvBM881hnRMMNw6mGv84zRWvfg=";
   };
 }
