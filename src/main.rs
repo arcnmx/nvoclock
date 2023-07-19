@@ -12,6 +12,7 @@ use std::str::FromStr;
 use std::io::{self, Write};
 use std::{fs, iter};
 use nvapi::{
+    nvapi::GSyncDevice,
     Gpu, GpuInfo, GpuSettings,
     Percentage, Celsius, Kilohertz, KilohertzDelta, Microvolts, VfPoint,
     ClockDomain, PState, CoolerPolicy, CoolerSettings, FanCoolerId,
@@ -309,6 +310,23 @@ fn main_result() -> Result<i32, Error> {
                     .help("Voltage")
                 )
             )
+        ).subcommand(SubCommand::with_name("gsync")
+            .alias("g-sync").alias("sync")
+            .about("Manage G-SYNC devices")
+            .arg(Arg::with_name("gsyncdevice")
+                .short("G")
+                .long("gsync")
+                .value_name("G-SYNC")
+                .takes_value(true)
+                .multiple(true)
+                .help("G-SYNC device ID")
+            ).subcommand(SubCommand::with_name("list")
+                .about("List detected G-SYNC devices")
+            ).subcommand(SubCommand::with_name("info")
+                .about("Information about the capabilities of the G-SYNC device")
+            ).subcommand(SubCommand::with_name("status")
+                .about("Show current G-SYNC information")
+            ).setting(AppSettings::SubcommandRequiredElseHelp)
         ).setting(AppSettings::SubcommandRequiredElseHelp);
 
     let matches = app.get_matches();
@@ -370,6 +388,11 @@ fn main_result() -> Result<i32, Error> {
         } else {
             Ok(v)
         }
+    }
+
+    fn select_gsync_devices<'a>(devices: &'a [GSyncDevice], device: Option<clap::Values>) -> Result<Vec<&'a GSyncDevice>, Error> {
+        debug!("TODO: select_gsync_devices");
+        Ok(devices.iter().collect())
     }
 
     let oformat = matches.value_of("oformat").map(OutputFormat::from_str).unwrap()?;
@@ -820,6 +843,84 @@ fn main_result() -> Result<i32, Error> {
                 },
                 ("", ..) => (),
                 _ => unreachable!("unknown command"),
+            }
+        },
+        ("gsync", Some(matches)) => {
+            let device = matches.values_of("gsyncdevice");
+            match matches.subcommand() {
+                ("list", Some(matches)) => {
+                    let devices = GSyncDevice::enumerate()?
+                        .into_iter()
+                        .map(|gsync| allowable_result(gsync.capabilities()).map(|caps| GSyncDescriptor {
+                            board_id: caps.map(|caps| caps.board_id).unwrap_or_default(),
+                            handle: gsync.handle().as_ptr() as usize,
+                        })).collect::<Result<Vec<_>, _>>()?;
+
+                    match oformat {
+                        OutputFormat::Human => for (i, device) in devices.into_iter().enumerate() {
+                            println!("G-SYNC #{}({}): {}", i, device.handle, device.board_id);
+                        },
+                        #[cfg(feature = "serde")]
+                        OutputFormat::Json => {
+                            serde_json::to_writer_pretty(io::stdout(), &devices)?
+                        },
+                        #[cfg(not(feature = "serde"))]
+                        OutputFormat::Json => unimplemented!(),
+                    }
+                },
+                ("info", Some(matches)) => {
+                    let devices = GSyncDevice::enumerate()?;
+                    let devices = select_gsync_devices(&devices, device)?;
+
+                    match oformat {
+                        OutputFormat::Human => {
+                            for gsync in devices {
+                                let info = gsync.capabilities()?;
+                                human::print_gsync_info(gsync, &info);
+                                println!();
+                            }
+                        },
+                        #[cfg(feature = "serde")]
+                        OutputFormat::Json => {
+                            serde_json::to_writer_pretty(
+                                io::stdout(),
+                                &devices.into_iter().map(|gsync| gsync.capabilities()).collect::<Result<Vec<_>, _>>()?
+                            )?;
+                        },
+                        #[cfg(not(feature = "serde"))]
+                        OutputFormat::Json => unimplemented!(),
+                    }
+                },
+                ("status", Some(matches)) => {
+                    let devices = GSyncDevice::enumerate()?;
+                    let devices = select_gsync_devices(&devices, device)?;
+                    let gpus = Gpu::enumerate()?;
+                    let gpus = select_gpus(&gpus, gpu)?;
+
+                    match oformat {
+                        OutputFormat::Human => {
+                            for gsync in &devices {
+                                for gpu in &gpus {
+                                    let status = gsync.sync_status(gpu.inner())?;
+
+                                    human::print_gsync_status(gsync, gpu, &status);
+
+                                    println!();
+                                }
+                            }
+                        },
+                        #[cfg(feature = "serde")]
+                        OutputFormat::Json => {
+                            let status = &devices.iter().flat_map(|gsync| gpus.iter()
+                                .map(|gpu| gsync.sync_status(gpu))
+                            ).collect::<Result<Vec<_>, _>>()?;
+                            serde_json::to_writer_pretty(io::stdout(), status)?;
+                        },
+                        #[cfg(not(feature = "serde"))]
+                        OutputFormat::Json => unimplemented!(),
+                    }
+                },
+                _ => unreachable!("unknown gsync command"),
             }
         },
         _ => unreachable!("unknown command"),

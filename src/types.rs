@@ -8,6 +8,13 @@ pub struct GpuDescriptor {
     pub name: String,
 }
 
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct GSyncDescriptor {
+    pub board_id: u32,
+    pub handle: usize,
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum OutputFormat {
     Human,

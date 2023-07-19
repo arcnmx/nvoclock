@@ -1,11 +1,12 @@
 use std::iter;
 use nvapi::{
-    GpuInfo, GpuStatus, GpuSettings,
+    Gpu, GpuInfo, GpuStatus, GpuSettings,
     Celsius, KilohertzDelta, VfPoint,
     ClockDomain, ClockFrequencies, VoltageDomain, Microvolts, PState,
     FanCoolerId, CoolerInfo, CoolerStatus, CoolerSettings, CoolerControl,
     SensorDesc, SensorLimit, SensorThrottle, PStateLimit,
     Utilizations, UtilizationDomain,
+    nvapi::{GSyncDevice, GSyncCapabilities, GSyncStatus},
 };
 use prettytable::{format, row, cell, Table};
 
@@ -502,4 +503,27 @@ pub fn print_pstates<'a, I: Iterator<Item=(PState, ClockDomain, &'a PStateLimit,
         ]);
     }
     table.print_tty(false);
+}
+
+pub fn print_gsync_status(device: &GSyncDevice, gpu: &Gpu, status: &GSyncStatus) {
+    pline!("G-SYNC", "{}", device.handle().as_ptr() as usize);
+    pline!("GPU", "{}", gpu.id());
+    pline!("Sync", "{:?}", status.synced);
+    pline!("Stereo Sync", "{:?}", status.stereo_synced);
+    pline!("Signal", "{:?}", status.sync_signal_available);
+}
+
+pub fn print_gsync_info(device: &GSyncDevice, capabilities: &GSyncCapabilities) {
+    pline!("G-SYNC", "{}", device.handle().as_ptr() as usize);
+    let board_id = match capabilities.board_id {
+        nvapi::sys::gsync::NVAPI_GSYNC_BOARD_ID_P358 => "P358".into(),
+        nvapi::sys::gsync::NVAPI_GSYNC_BOARD_ID_P2060 => "P2060".into(),
+        nvapi::sys::gsync::NVAPI_GSYNC_BOARD_ID_P2061 => "P2061".into(),
+        id => id.to_string(),
+    };
+    pline!("Board ID", "{}", capabilities.board_id);
+    pline!("Revision", "{}.{}", capabilities.revision, capabilities.extended_revision);
+    if let Some(max_mul_div) = capabilities.max_mul_div {
+        pline!("Maximum Mul/Div", "{}", max_mul_div);
+    }
 }
