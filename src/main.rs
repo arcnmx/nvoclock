@@ -656,18 +656,28 @@ fn main_result() -> Result<i32, Error> {
                             let status = gpu.status()?;
                             let settings = gpu.settings()?;
 
-                            let points = status.vfp.ok_or(Status::NotSupported)?.graphics
+                            let points: Vec<VfPoint> = status.vfp.ok_or(Status::NotSupported)?.graphics
                                 .into_iter().zip(settings.vfp.ok_or(Status::NotSupported)?.graphics.into_iter())
                                 .map(|((i0, point), (i1, delta))| {
                                     assert_eq!(i0, i1);
                                     VfPoint::new(point, delta)
-                                });
-
+                                }).collect();
                             if is_std(output) {
-                                export_vfp(io::stdout(), points, delimiter)
+                                match oformat {
+                                    OutputFormat::Json => {
+                                        serde_json::to_writer_pretty(io::stdout(), &points)?;
+                                        writeln!(io::stdout())?;
+                                    },
+                                    _ => export_vfp(io::stdout(), points.into_iter(), delimiter)?,
+                                }
                             } else {
-                                export_vfp(fs::File::create(output)?, points, delimiter)
-                            }?
+                                match oformat {
+                                    OutputFormat::Json => {
+                                        serde_json::to_writer_pretty(fs::File::create(output)?, &points)?;
+                                    },
+                                    _ => export_vfp(fs::File::create(output)?, points.into_iter(), delimiter)?,
+                                }
+                            }
                         },
                         ("import", Some(matches)) => {
                             for gpu in &gpus {
